@@ -10,6 +10,7 @@ namespace cAlgo
 
     public class Level
     {
+        public string Id { get; set; }
         public string Label { get; set; }
         public string Symbol { get; set; }
         public DateTime ValidFrom { get; set; }

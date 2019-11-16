@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
 using cAlgo.API;
@@ -22,24 +23,51 @@ namespace cAlgo
 
         public void Init()
         {
-            var xml = XDocument.Load(Params.LevelFilePath);
+            XDocument xml = loadXml();
+
             Levels = new LevelParser().Parse(xml, Params);
             Initialize(Levels);
-            Analyze(Levels);
+            AnalyzeHistory(Levels);
             DrawLevels(Levels);
         }
 
+        private XDocument loadXml()
+        {
+            string filePath = Params.LevelFilePath;
+            if (Robot.RunningMode != RunningMode.RealTime)
+            {
+                DateTime time = Robot.Server.TimeInUtc;
+                int week = GetWeekOfYear(time);
+                filePath = Params.BackTestPath + "\\" + time.Year + "-" + time.Month + "-" + time.Day + " (" + week + ")\\";
+            }
+            filePath += Params.LevelFileName;
+            Robot.Print("Loading file {0}", filePath);
+            return XDocument.Load(filePath);
+        }
 
 
         public void Trade()
         {
+            
             // Robot.Print("Busy with trading [Bid: " + Robot.Symbol.Bid + " Ask: " + Robot.Symbol.Ask + " ]");
+        }
+
+        public void OnBar()
+        {
+            DateTime time = Robot.Server.TimeInUtc;
+            if(Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute && time.Second == 0)
+            {
+                Init();
+                Robot.Print("Auto-reload on scheduled time {0} UTC executed successfully", time);
+            }
         }
 
         private void Initialize(List<Level> levels)
         {
+            int idx = 0;
             foreach (Level level in Levels)
             {
+                level.Id = Params.LevelFileName + "_" + idx;
                 int levelFirstBarIndex = Robot.MarketSeries.OpenTime.GetIndexByTime(level.ValidFrom);
                 CheckDirection(level, levelFirstBarIndex);
                 if(level.Direction == Direction.LONG)
@@ -56,6 +84,7 @@ namespace cAlgo
                     level.ActivatePrice = level.EntryPrice - Params.StopLoss * Robot.Symbol.TickSize * (Params.LevelActivate / 100.0);
                     level.DeactivatePrice = level.EntryPrice - Params.StopLoss * Robot.Symbol.TickSize * (Params.LevelDeactivate / 100.0);
                 }
+                idx++;
             }
         }
 
@@ -64,7 +93,7 @@ namespace cAlgo
             level.Direction = level.EntryPrice > Robot.MarketSeries.High[levelFirstBarIndex] ? Direction.SHORT : Direction.LONG;
         }
 
-        private void Analyze(List<Level> Levels)
+        private void AnalyzeHistory(List<Level> Levels)
         {
             foreach (Level level in Levels)
             {
@@ -125,19 +154,29 @@ namespace cAlgo
         private void DrawLevelLine(Level level)
         {
             string description = level.Label + " " + level.Direction + " " + (level.Traded ? "traded" : "");
-            Robot.Chart.DrawText(level.Label + "_label", description , level.ValidFrom, level.EntryPrice + 0.0002, Color.DarkBlue);
-            Robot.Chart.DrawTrendLine(level.Label, level.ValidFrom, level.EntryPrice, level.ValidTo, level.EntryPrice, Color.DarkBlue, 2, LineStyle.LinesDots);
+            Robot.Chart.DrawText(level.Id + "_label", description , level.ValidFrom, level.EntryPrice + 0.0002, Color.DarkBlue);
+            Robot.Chart.DrawTrendLine(level.Id, level.ValidFrom, level.EntryPrice, level.ValidTo, level.EntryPrice, Color.DarkBlue, 2, LineStyle.LinesDots);
 
-            Robot.Chart.DrawTrendLine(level.Label + "_labelActivate", level.ValidFrom, level.ActivatePrice, level.ValidTo, level.ActivatePrice, Color.LightBlue, 2, LineStyle.Dots);
+            Robot.Chart.DrawTrendLine(level.Id + "_labelActivate", level.ValidFrom, level.ActivatePrice, level.ValidTo, level.ActivatePrice, Color.LightBlue, 2, LineStyle.Dots);
 
-            Robot.Chart.DrawTrendLine(level.Label + "_labelDeactivate", level.ValidFrom, level.DeactivatePrice, level.ValidTo, level.DeactivatePrice, Color.LightBlue, 2, LineStyle.Dots);
+            Robot.Chart.DrawTrendLine(level.Id + "_labelDeactivate", level.ValidFrom, level.DeactivatePrice, level.ValidTo, level.DeactivatePrice, Color.LightBlue, 2, LineStyle.Dots);
 
 
-            Robot.Chart.DrawText(level.Label + "_SL_label", level.Label + " SL", level.ValidFrom, level.StopLossPrice + 0.0002, Color.LightCoral);
-            Robot.Chart.DrawTrendLine(level.Label + "_SL", level.ValidFrom, level.StopLossPrice, level.ValidTo, level.StopLossPrice, Color.LightCoral, 2, LineStyle.Dots);
+            Robot.Chart.DrawText(level.Id + "_SL_label", level.Label + " SL", level.ValidFrom, level.StopLossPrice + 0.0002, Color.LightCoral);
+            Robot.Chart.DrawTrendLine(level.Id + "_SL", level.ValidFrom, level.StopLossPrice, level.ValidTo, level.StopLossPrice, Color.LightCoral, 2, LineStyle.Dots);
 
-            Robot.Chart.DrawText(level.Label + "_PT_label", level.Label + " PT" , level.ValidFrom, level.ProfitTargetPrice + 0.0002, Color.LimeGreen);
-            Robot.Chart.DrawTrendLine(level.Label + "_PT", level.ValidFrom, level.ProfitTargetPrice, level.ValidTo, level.ProfitTargetPrice, Color.LimeGreen, 2, LineStyle.Dots);
+            Robot.Chart.DrawText(level.Id + "_PT_label", level.Label + " PT" , level.ValidFrom, level.ProfitTargetPrice + 0.0002, Color.LimeGreen);
+            Robot.Chart.DrawTrendLine(level.Id + "_PT", level.ValidFrom, level.ProfitTargetPrice, level.ValidTo, level.ProfitTargetPrice, Color.LimeGreen, 2, LineStyle.Dots);
+        }
+
+        private int GetWeekOfYear(DateTime time)
+        {
+            DayOfWeek day = CultureInfo.InvariantCulture.Calendar.GetDayOfWeek(time);
+            if (day >= DayOfWeek.Monday && day <= DayOfWeek.Wednesday)
+            {
+                time = time.AddDays(3);
+            }
+            return CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(time, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
         }
     }
 }
