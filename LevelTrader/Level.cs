@@ -23,6 +23,10 @@ namespace cAlgo
         public bool LevelActivated { get; set; }
         public bool Traded { get; set; }
         public Direction Direction { get; set; }
+        public int LevelActivatedIndex { get; set; }
+        public int BeginBarIndex { get; set; }
+        public int StopLoss { get; set; }
+        public double ProfitTarget { get; set; }
 
         override public string ToString()
         {

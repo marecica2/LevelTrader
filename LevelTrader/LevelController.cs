@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Xml.Linq;
 using cAlgo.API;
 
@@ -15,23 +14,29 @@ namespace cAlgo
 
         private List<Level> Levels;
 
+        private LevelRenderer Renderer;
+
+        private RiskCalculator Calculator;
+
         public LevelController(Robot robot, InputParams inputParams)
         {
             Robot = robot;
             Params = inputParams;
+            Renderer = new LevelRenderer(Robot);
+            Calculator = new RiskCalculator(Robot);
         }
 
         public void Init()
         {
-            XDocument xml = loadXml();
+            XDocument xml = LoadXml();
 
             Levels = new LevelParser().Parse(xml, Params);
             Initialize(Levels);
             AnalyzeHistory(Levels);
-            DrawLevels(Levels);
+            Renderer.Render(Levels);
         }
 
-        private XDocument loadXml()
+        private XDocument LoadXml()
         {
             string filePath = Params.LevelFilePath;
             if (Robot.RunningMode != RunningMode.RealTime)
@@ -46,9 +51,9 @@ namespace cAlgo
         }
 
 
-        public void Trade()
+        public void OnTick()
         {
-            
+            AnalyzeLevelsOnTick();
             // Robot.Print("Busy with trading [Bid: " + Robot.Symbol.Bid + " Ask: " + Robot.Symbol.Ask + " ]");
         }
 
@@ -68,21 +73,25 @@ namespace cAlgo
             foreach (Level level in Levels)
             {
                 level.Id = Params.LevelFileName + "_" + idx;
-                int levelFirstBarIndex = Robot.MarketSeries.OpenTime.GetIndexByTime(level.ValidFrom);
-                CheckDirection(level, levelFirstBarIndex);
+                level.BeginBarIndex = Robot.MarketSeries.OpenTime.GetIndexByTime(level.ValidFrom);
+                CheckDirection(level, level.BeginBarIndex);
+                level.EntryPrice = level.Direction == Direction.LONG ? level.EntryPrice + Params.LevelOffset * 0.0001 : level.EntryPrice - Params.LevelOffset * 0.0001;
+                level.StopLoss = Params.StopLoss;
+                level.ProfitTarget = Params.StopLoss * Params.RiskRewardRatio;
+
                 if(level.Direction == Direction.LONG)
                 {
-                    level.StopLossPrice = level.EntryPrice - Params.StopLoss * Robot.Symbol.TickSize;
-                    level.ProfitTargetPrice = level.EntryPrice + Params.StopLoss * Robot.Symbol.TickSize * Params.RiskRewardRatio;
-                    level.ActivatePrice = level.EntryPrice + Params.StopLoss * Robot.Symbol.TickSize * (Params.LevelActivate / 100.0);
-                    level.DeactivatePrice = level.EntryPrice + Params.StopLoss * Robot.Symbol.TickSize * (Params.LevelDeactivate / 100.0);
+                    level.StopLossPrice = level.EntryPrice - Params.StopLoss * 10 * Robot.Symbol.TickSize;
+                    level.ProfitTargetPrice = level.EntryPrice + Params.StopLoss * 10 * Robot.Symbol.TickSize * Params.RiskRewardRatio;
+                    level.ActivatePrice = level.EntryPrice + Params.StopLoss * 10 * Robot.Symbol.TickSize * (Params.LevelActivate / 100.0);
+                    level.DeactivatePrice = level.EntryPrice + Params.StopLoss * 10 * Robot.Symbol.TickSize * (Params.LevelDeactivate / 100.0);
                 }
                 else
                 {
-                    level.StopLossPrice = level.EntryPrice + Params.StopLoss * Robot.Symbol.TickSize;
-                    level.ProfitTargetPrice = level.EntryPrice - Params.StopLoss * Robot.Symbol.TickSize * Params.RiskRewardRatio;
-                    level.ActivatePrice = level.EntryPrice - Params.StopLoss * Robot.Symbol.TickSize * (Params.LevelActivate / 100.0);
-                    level.DeactivatePrice = level.EntryPrice - Params.StopLoss * Robot.Symbol.TickSize * (Params.LevelDeactivate / 100.0);
+                    level.StopLossPrice = level.EntryPrice + Params.StopLoss * 10 * Robot.Symbol.TickSize;
+                    level.ProfitTargetPrice = level.EntryPrice - Params.StopLoss * 10 * Robot.Symbol.TickSize * Params.RiskRewardRatio;
+                    level.ActivatePrice = level.EntryPrice - Params.StopLoss * 10 * Robot.Symbol.TickSize * (Params.LevelActivate / 100.0);
+                    level.DeactivatePrice = level.EntryPrice - Params.StopLoss * 10 * Robot.Symbol.TickSize * (Params.LevelDeactivate / 100.0);
                 }
                 idx++;
             }
@@ -100,11 +109,11 @@ namespace cAlgo
                 int levelFirstBarIndex = Robot.MarketSeries.OpenTime.GetIndexByTime(level.ValidFrom);
                 int levelLastBarIndex = Robot.MarketSeries.OpenTime.GetIndexByTime(level.ValidTo);
                 DateTime currentDate = Robot.MarketSeries.OpenTime.LastValue.Date;
-                CheckTraded(level, levelFirstBarIndex, levelLastBarIndex);
+                HasBeenTraded(level, levelFirstBarIndex, levelLastBarIndex);
             }
         }
 
-        private void CheckTraded(Level level, int fromIndex, int toIndex)
+        private void HasBeenTraded(Level level, int fromIndex, int toIndex)
         {
             if (level.Direction == Direction.LONG)
             {
@@ -123,50 +132,78 @@ namespace cAlgo
                 {
                     if (Robot.MarketSeries.High[i] >= level.ActivatePrice && !level.LevelActivated)
                     {
-                        Robot.Print("Level {0} marked as activated at {1}", level, Robot.MarketSeries.OpenTime[i]);
+                        Robot.Print("Level {0} marked as activated at {1}", level.Label, Robot.MarketSeries.OpenTime[i]);
                         level.LevelActivated = true;
                     }
                     if (Robot.MarketSeries.High[i] <= level.DeactivatePrice && level.LevelActivated)
                     {
                         level.Traded = true;
-                        Robot.Print("Level {0} marked as cancelled at {1}", level, Robot.MarketSeries.OpenTime[i]);
+                        Robot.Print("Level {0} marked as cancelled at {1}", level.Label, Robot.MarketSeries.OpenTime[i]);
                         break;
                     }
                     if (Robot.MarketSeries.High[i] >= level.EntryPrice)
                     {
                         level.Traded = true;
-                        Robot.Print("Level {0} marked as traded", level);
+                        Robot.Print("Level {0} marked as traded", level.Label);
                         break;
                     }
                 }
             }
         }
 
-        private void DrawLevels(List<Level> Levels)
+        private void AnalyzeLevelsOnTick()
         {
+            int idx = Robot.MarketSeries.Close.Count - 1;
             foreach (Level level in Levels)
             {
-                Robot.Print(level);
-                DrawLevelLine(level);
+                if(!level.Traded)
+                {
+                    if (level.Direction == Direction.LONG)
+                    {
+                        if (Robot.MarketSeries.Close[idx] <= level.ActivatePrice && !level.LevelActivated)
+                        {
+                            level.LevelActivated = true;
+                            level.LevelActivatedIndex = idx;
+                            double orderVolume = Calculator.GetVolume(Robot.Symbol.Name, Params.RiskRewardRatio, Params.StopLoss, TradeType.Buy);
+                            Robot.PlaceLimitOrder(TradeType.Buy, Robot.Symbol.Name, orderVolume, level.EntryPrice, level.Label, level.StopLoss, level.ProfitTarget);
+                        }
+                        if (Robot.MarketSeries.Close[idx] > level.DeactivatePrice && level.LevelActivated)
+                        {
+                            level.Traded = true;
+                            Renderer.RenderLevel(level);
+                            CancelPendingOrder(level);
+                        }
+                    }
+                    else
+                    {
+                        if (Robot.MarketSeries.Close[idx] >= level.ActivatePrice && !level.LevelActivated)
+                        {
+                            level.LevelActivated = true;
+                            level.LevelActivatedIndex = idx;
+                            double orderVolume = Calculator.GetVolume(Robot.Symbol.Name, Params.RiskRewardRatio, Params.StopLoss, TradeType.Sell);
+                            Robot.PlaceLimitOrder(TradeType.Sell, Robot.Symbol.Name, orderVolume, level.EntryPrice, level.Label, level.StopLoss, level.ProfitTarget);
+                        }
+                        if (Robot.MarketSeries.Close[idx] < level.DeactivatePrice && level.LevelActivated)
+                        {
+                            level.Traded = true;
+                            Renderer.RenderLevel(level);
+                            CancelPendingOrder(level);
+                        }
+                    }
+                }
             }
         }
 
-        private void DrawLevelLine(Level level)
+        private void CancelPendingOrder(Level level)
         {
-            string description = level.Label + " " + level.Direction + " " + (level.Traded ? "traded" : "");
-            Robot.Chart.DrawText(level.Id + "_label", description , level.ValidFrom, level.EntryPrice + 0.0002, Color.DarkBlue);
-            Robot.Chart.DrawTrendLine(level.Id, level.ValidFrom, level.EntryPrice, level.ValidTo, level.EntryPrice, Color.DarkBlue, 2, LineStyle.LinesDots);
-
-            Robot.Chart.DrawTrendLine(level.Id + "_labelActivate", level.ValidFrom, level.ActivatePrice, level.ValidTo, level.ActivatePrice, Color.LightBlue, 2, LineStyle.Dots);
-
-            Robot.Chart.DrawTrendLine(level.Id + "_labelDeactivate", level.ValidFrom, level.DeactivatePrice, level.ValidTo, level.DeactivatePrice, Color.LightBlue, 2, LineStyle.Dots);
-
-
-            Robot.Chart.DrawText(level.Id + "_SL_label", level.Label + " SL", level.ValidFrom, level.StopLossPrice + 0.0002, Color.LightCoral);
-            Robot.Chart.DrawTrendLine(level.Id + "_SL", level.ValidFrom, level.StopLossPrice, level.ValidTo, level.StopLossPrice, Color.LightCoral, 2, LineStyle.Dots);
-
-            Robot.Chart.DrawText(level.Id + "_PT_label", level.Label + " PT" , level.ValidFrom, level.ProfitTargetPrice + 0.0002, Color.LimeGreen);
-            Robot.Chart.DrawTrendLine(level.Id + "_PT", level.ValidFrom, level.ProfitTargetPrice, level.ValidTo, level.ProfitTargetPrice, Color.LimeGreen, 2, LineStyle.Dots);
+            foreach (var order in Robot.PendingOrders)
+            {
+                if (order.Label == level.Label)
+                {
+                    Robot.Print("Order for level {0} cancelled. Reason OFF level reached", level.Label);
+                    Robot.CancelPendingOrder(order);
+                }
+            }
         }
 
         private int GetWeekOfYear(DateTime time)
