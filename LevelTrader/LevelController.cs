@@ -54,7 +54,6 @@ namespace cAlgo
         public void OnTick()
         {
             AnalyzeLevelsOnTick();
-            // Robot.Print("Busy with trading [Bid: " + Robot.Symbol.Bid + " Ask: " + Robot.Symbol.Ask + " ]");
         }
 
         public void OnBar()
@@ -75,23 +74,23 @@ namespace cAlgo
                 level.Id = Params.LevelFileName + "_" + idx;
                 level.BeginBarIndex = Robot.MarketSeries.OpenTime.GetIndexByTime(level.ValidFrom);
                 CheckDirection(level, level.BeginBarIndex);
-                level.EntryPrice = level.Direction == Direction.LONG ? level.EntryPrice + Params.LevelOffset * 0.0001 : level.EntryPrice - Params.LevelOffset * 0.0001;
-                level.StopLoss = Params.StopLoss;
-                level.ProfitTarget = Params.StopLoss * Params.RiskRewardRatio;
+                level.EntryPrice = level.Direction == Direction.LONG ? level.EntryPrice + Params.LevelOffset * Robot.Symbol.PipSize : level.EntryPrice - Params.LevelOffset * Robot.Symbol.PipSize;
+                level.StopLoss = Params.StopLossPips;
+                level.ProfitTarget = Params.StopLossPips * Params.RiskRewardRatio;
 
                 if(level.Direction == Direction.LONG)
                 {
-                    level.StopLossPrice = level.EntryPrice - Params.StopLoss * 10 * Robot.Symbol.TickSize;
-                    level.ProfitTargetPrice = level.EntryPrice + Params.StopLoss * 10 * Robot.Symbol.TickSize * Params.RiskRewardRatio;
-                    level.ActivatePrice = level.EntryPrice + Params.StopLoss * 10 * Robot.Symbol.TickSize * (Params.LevelActivate / 100.0);
-                    level.DeactivatePrice = level.EntryPrice + Params.StopLoss * 10 * Robot.Symbol.TickSize * (Params.LevelDeactivate / 100.0);
+                    level.StopLossPrice = level.EntryPrice - Params.StopLossPips * 10 * Robot.Symbol.TickSize;
+                    level.ProfitTargetPrice = level.EntryPrice + Params.StopLossPips * Params.RiskRewardRatio * Robot.Symbol.PipSize * 100;
+                    level.ActivatePrice = level.EntryPrice + Params.StopLossPips * 10 * Robot.Symbol.TickSize * Params.LevelActivate;
+                    level.DeactivatePrice = level.EntryPrice + Params.StopLossPips * 10 * Robot.Symbol.TickSize * Params.LevelDeactivate;
                 }
                 else
                 {
-                    level.StopLossPrice = level.EntryPrice + Params.StopLoss * 10 * Robot.Symbol.TickSize;
-                    level.ProfitTargetPrice = level.EntryPrice - Params.StopLoss * 10 * Robot.Symbol.TickSize * Params.RiskRewardRatio;
-                    level.ActivatePrice = level.EntryPrice - Params.StopLoss * 10 * Robot.Symbol.TickSize * (Params.LevelActivate / 100.0);
-                    level.DeactivatePrice = level.EntryPrice - Params.StopLoss * 10 * Robot.Symbol.TickSize * (Params.LevelDeactivate / 100.0);
+                    level.StopLossPrice = level.EntryPrice + Params.StopLossPips * 10 * Robot.Symbol.TickSize;
+                    level.ProfitTargetPrice = level.EntryPrice - Params.StopLossPips * Params.RiskRewardRatio * Robot.Symbol.PipSize * 100;
+                    level.ActivatePrice = level.EntryPrice - Params.StopLossPips * 10 * Robot.Symbol.TickSize * Params.LevelActivate;
+                    level.DeactivatePrice = level.EntryPrice - Params.StopLossPips * 10 * Robot.Symbol.TickSize * Params.LevelDeactivate;
                 }
                 idx++;
             }
@@ -164,7 +163,7 @@ namespace cAlgo
                         {
                             level.LevelActivated = true;
                             level.LevelActivatedIndex = idx;
-                            double orderVolume = Calculator.GetVolume(Robot.Symbol.Name, Params.RiskRewardRatio, Params.StopLoss, TradeType.Buy);
+                            double orderVolume = Calculator.GetVolume(Robot.Symbol.Name, Params.RiskRewardRatio, Params.StopLossPips, TradeType.Buy);
                             Robot.PlaceLimitOrder(TradeType.Buy, Robot.Symbol.Name, orderVolume, level.EntryPrice, level.Label, level.StopLoss, level.ProfitTarget);
                         }
                         if (Robot.MarketSeries.Close[idx] > level.DeactivatePrice && level.LevelActivated)
@@ -180,7 +179,7 @@ namespace cAlgo
                         {
                             level.LevelActivated = true;
                             level.LevelActivatedIndex = idx;
-                            double orderVolume = Calculator.GetVolume(Robot.Symbol.Name, Params.RiskRewardRatio, Params.StopLoss, TradeType.Sell);
+                            double orderVolume = Calculator.GetVolume(Robot.Symbol.Name, Params.RiskRewardRatio, Params.StopLossPips, TradeType.Sell);
                             Robot.PlaceLimitOrder(TradeType.Sell, Robot.Symbol.Name, orderVolume, level.EntryPrice, level.Label, level.StopLoss, level.ProfitTarget);
                         }
                         if (Robot.MarketSeries.Close[idx] < level.DeactivatePrice && level.LevelActivated)

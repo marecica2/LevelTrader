@@ -27,12 +27,12 @@
 
         // Risk Management
         public double PositionSize { get; set; }
-        public double StopLoss { get; set; }
+        public int StopLossPips { get; set; }
         public double RiskRewardRatio { get; set; }
 
         // Level params
-        public int LevelActivate { get; set; }
-        public int LevelDeactivate { get; set; }
+        public double LevelActivate { get; set; }
+        public double LevelDeactivate { get; set; }
         public double LevelOffset { get; set; }
 
         // Loss params

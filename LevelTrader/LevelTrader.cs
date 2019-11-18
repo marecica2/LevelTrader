@@ -35,7 +35,7 @@ namespace cAlgo.Robots
         [Parameter("Deactivate Level Distance [%]", DefaultValue = 77, MinValue = 0, MaxValue = 100, Group = "Level Control", Step = 1.0)]
         public int DeactivateLevelPercents { get; set; }
 
-        [Parameter("Level Offset [Pips]", DefaultValue = 0, MinValue = -100, MaxValue = 100, Group = "Level Control")]
+        [Parameter("Level Offset [Pips]", DefaultValue = 0, MinValue = -100, MaxValue = 100, Group = "Level Control", Step = 1.0)]
         public double LevelOffset { get; set; }
 
 
@@ -89,20 +89,20 @@ namespace cAlgo.Robots
                 DailyReloadMinute = int.Parse(DailyReloadTime.Split(new string[] { ":" }, StringSplitOptions.None)[1]),
                 TimeZoneOffset = TimeZoneOffset,
 
-                PositionSize = PositionSizePercents,
-                StopLoss = DefaultStopLossPips,
-                RiskRewardRatio = RiskRewardRatio,
+                PositionSize = PositionSizePercents * 0.01,
+                StopLossPips = DefaultStopLossPips,
+                RiskRewardRatio = RiskRewardRatio * 0.01,
 
-                LevelActivate = ActivateLevelPercents,
-                LevelDeactivate = DeactivateLevelPercents,
+                LevelActivate = ActivateLevelPercents * 0.01,
+                LevelDeactivate = DeactivateLevelPercents * 0.01,
                 LevelOffset = LevelOffset,
 
                 LossStrategy = (LossStrategy) LossStrategy,
                 CandlesInNegativeArea = CandlesInNegativeArea,
-                NegativeBreakEvenOffset = NegativeBreakEvenOffset,
+                NegativeBreakEvenOffset = NegativeBreakEvenOffset * 0.01,
 
-                ProfitThreshold = ProfitThreshold,
-                ProfitVolume = ProfitVolume,
+                ProfitThreshold = ProfitThreshold * 0.01,
+                ProfitVolume = ProfitVolume * 0.01,
 
                 BackTestPath = BackTestPath,
             };
