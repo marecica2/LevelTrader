@@ -47,5 +47,7 @@
         public double NegativeBreakEvenOffset { get; set; }
         public double ProfitThreshold { get; set; }
         public double ProfitVolume { get; set; }
+        public bool CalendarPause { get; set; }
+        public int CalendarBeforeOffset { get; set; }
     }
 }

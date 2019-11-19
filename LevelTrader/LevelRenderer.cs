@@ -22,7 +22,7 @@ namespace cAlgo
 
         public void RenderLevel(Level level)
         {
-            //Robot.Print(level);
+            Robot.Print(level);
             string description = level.Label + " " + level.Direction + " " + (level.Traded ? "traded" : "");
 
             Color levelColor = level.Traded ? Color.Gray : Color.DarkBlue;
@@ -31,7 +31,7 @@ namespace cAlgo
             Color ptColor = level.Traded ? Color.LightGray : Color.LimeGreen;
 
             Robot.Chart.DrawText(level.Label + "_label", description, level.ValidFrom, level.EntryPrice + 0.0002, levelColor);
-            Robot.Chart.DrawTrendLine(level.Label, level.ValidFrom, level.EntryPrice, level.ValidTo, level.EntryPrice, levelColor);
+            Robot.Chart.DrawTrendLine(level.Label, level.ValidFrom, level.EntryPrice, level.ValidTo, level.EntryPrice, levelColor, 2, LineStyle.LinesDots);
 
             Robot.Chart.DrawTrendLine(level.Label + "_labelActivate", level.ValidFrom, level.ActivatePrice, level.ValidTo, level.ActivatePrice, zoneColor, 2, LineStyle.Dots);
             Robot.Chart.DrawTrendLine(level.Label + "_labelDeactivate", level.ValidFrom, level.DeactivatePrice, level.ValidTo, level.DeactivatePrice, zoneColor, 2, LineStyle.Dots);

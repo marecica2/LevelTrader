@@ -25,10 +25,7 @@ namespace cAlgo
         private DateTime ParseDateTime(string val, InputParams parameters)
         {
             DateTime dateTime = DateTime.ParseExact(val, "yyyy-MM-dd_HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
-            if (parameters != null)
-            {
-                dateTime.AddHours(parameters.TimeZoneOffset);
-            }
+            dateTime = dateTime.AddHours(parameters.TimeZoneOffset);
             return dateTime;
         }
     }

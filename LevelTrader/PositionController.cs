@@ -22,11 +22,11 @@ namespace cAlgo
         {
             foreach (Position position in Robot.Positions)
             {
-                if (position.NetProfit < 0 && !modifiedPositions.Contains(position))
+                if (position.GrossProfit < 0 && !modifiedPositions.Contains(position))
                 {
                    ApplyNegativeProfitStrategy(position, Params.LossStrategy);
                 }             
-                if (position.NetProfit >= getRiskAmount() * Params.ProfitThreshold * 0.01 && !modifiedPositions.Contains(position))
+                if (position.GrossProfit >= getRiskAmount() * Params.ProfitThreshold)
                 {
                     ApplyProfitStrategy(position);
                 }
@@ -35,7 +35,7 @@ namespace cAlgo
 
         private double getRiskAmount()
         {
-            return Robot.Account.Balance * Params.RiskRewardRatio * 0.01;
+            return Robot.Account.Balance * Params.RiskRewardRatio;
         }
 
         private void ApplyNegativeProfitStrategy(Position position, LossStrategy strategy)
@@ -51,13 +51,21 @@ namespace cAlgo
                 Robot.Print("Moving Profit to Breakeven as {0}% of original Stop Loss. Reason: {1} candle(s) in negative area", Params.NegativeBreakEvenOffset, numOfCandles);
                 if (position.TradeType == TradeType.Buy)
                 {
-                    double negativeBreakOffset = (position.EntryPrice - position.StopLoss.Value) * Params.NegativeBreakEvenOffset * 0.01;
-                    Robot.ModifyPosition(position, position.StopLoss, position.EntryPrice - negativeBreakOffset);
+                    double negativeBreakOffset = (position.EntryPrice - position.StopLoss.Value) * Params.NegativeBreakEvenOffset;
+                    TradeResult res = Robot.ModifyPosition(position, position.StopLoss, position.EntryPrice - negativeBreakOffset);
+                    if(!res.IsSuccessful)
+                    {
+                        Robot.Print(res.Error.Value);
+                    }
                 }
                 else
                 {
-                    double negativeBreakOffset = (position.StopLoss.Value - position.EntryPrice) * Params.NegativeBreakEvenOffset * 0.01;
-                    Robot.ModifyPosition(position, position.StopLoss, position.EntryPrice + negativeBreakOffset);
+                    double negativeBreakOffset = (position.StopLoss.Value - position.EntryPrice) * Params.NegativeBreakEvenOffset;
+                    TradeResult res = Robot.ModifyPosition(position, position.StopLoss, position.EntryPrice + negativeBreakOffset);
+                    if (!res.IsSuccessful)
+                    {
+                        Robot.Print(res.Error.Value);
+                    }
                 }
                 modifiedPositions.Add(position);
             }
@@ -70,7 +78,7 @@ namespace cAlgo
 
             if (Params.ProfitVolume > 0)
             {
-                Robot.ModifyPosition(position, Robot.Symbol.NormalizeVolumeInUnits(position.VolumeInUnits * Params.ProfitVolume * 0.01));
+                Robot.ModifyPosition(position, Robot.Symbol.NormalizeVolumeInUnits(position.VolumeInUnits * Params.ProfitVolume));
                 Robot.Print("Partial profit taken for volume {0}", Params.ProfitVolume);
             }
             modifiedPositions.Add(position);

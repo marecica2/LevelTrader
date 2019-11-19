@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using cAlgo.API;
 using cAlgo.API.Internals;
 
@@ -13,7 +14,7 @@ namespace cAlgo.Robots
         [Parameter("File Name", DefaultValue = "FE_NT8.xml", Group = "Input")]
         public string FileName { get; set; }
 
-        [Parameter("Time Zone Offset", DefaultValue = 1, MinValue = -12, MaxValue = 12, Group = "Input")]
+        [Parameter("Time Zone Offset to UTC", DefaultValue = -1, MinValue = -12, MaxValue = 12, Group = "Input")]
         public int TimeZoneOffset { get; set; }
 
         [Parameter("Daily Update Time" ,DefaultValue = "08:35", Group = "Input")]
@@ -43,13 +44,13 @@ namespace cAlgo.Robots
         [Parameter("Loss Strategy 0=Full Candles in Negative Area, 1=Candle Bodies in Negative Area, 2=POC in Negative Area", DefaultValue = 0, MinValue = 0, MaxValue = 1, Group = "Stop Loss Control")]
         public int LossStrategy { get; set; }
 
-        [Parameter("Default Stop Loss [Pips]", DefaultValue = 10, MinValue = 1, Group = "Stop Loss Control")]
+        [Parameter("Default Stop Loss [Pips]", DefaultValue = 10, MinValue = 1, Group = "Loss Control")]
         public int DefaultStopLossPips { get; set; }
 
-        [Parameter("Number of Candles in Negative Area", DefaultValue = 2, MinValue = 0, Group = "Stop Loss Control")]
+        [Parameter("Number of Candles in Negative Area", DefaultValue = 2, MinValue = 0, Group = "Loss Control")]
         public int CandlesInNegativeArea { get; set; }
 
-        [Parameter("Negative BE Offset [% of SL]", DefaultValue = 10, MinValue = -100, MaxValue = 100, Group = "Stop Loss Control", Step = 1.0)]
+        [Parameter("Negative BE Offset [% of SL]", DefaultValue = 10, MinValue = -100, MaxValue = 100, Group = "Loss Control", Step = 1.0)]
         public double NegativeBreakEvenOffset { get; set; }
 
 
@@ -62,10 +63,20 @@ namespace cAlgo.Robots
 
 
 
+        [Parameter("Pause Trading on Calendar Events", DefaultValue = true, Group = "Event Calendar")]
+        public bool CalendarPause { get; set; }
+
+        [Parameter("Offset Before Event [min]", DefaultValue = 20, MinValue = 0, MaxValue = 60, Group = "Event Calendar")]
+        public int CalendarBeforeOffset { get; set; }
+
+
+
         [Parameter("Backtest Folder", DefaultValue = "C:\\Users\\marec\\Documents\\TRADING_BACKTEST", Group = "Backtest")]
         public string BackTestPath { get; set; }
 
         private LevelController LevelController;
+
+        private Calendar Calendar;
 
         private PositionController PositionController;
 
@@ -73,12 +84,6 @@ namespace cAlgo.Robots
 
         protected override void OnStart()
         {
-            //RiskCalculator calc = new RiskCalculator(this);
-            //double volume1 = calc.GetVolume("GBPUSD", 1, 12, TradeType.Buy);
-            //Print("VOLUME " + volume1 );
-            //double volume = calc.GetVolume("USDJPY", 1, 12, TradeType.Buy);
-            //Print("VOLUME " + volume );
-
             InputParams = new InputParams
             {
                 Instrument = Symbol.Name,
@@ -97,20 +102,29 @@ namespace cAlgo.Robots
                 LevelDeactivate = DeactivateLevelPercents * 0.01,
                 LevelOffset = LevelOffset,
 
-                LossStrategy = (LossStrategy) LossStrategy,
+                LossStrategy = (LossStrategy)LossStrategy,
                 CandlesInNegativeArea = CandlesInNegativeArea,
                 NegativeBreakEvenOffset = NegativeBreakEvenOffset * 0.01,
 
                 ProfitThreshold = ProfitThreshold * 0.01,
                 ProfitVolume = ProfitVolume * 0.01,
 
+                CalendarPause = CalendarPause,
+                CalendarBeforeOffset = CalendarBeforeOffset,
+
                 BackTestPath = BackTestPath,
             };
+
+            Calendar = new Calendar(this, InputParams);
+            Calendar.Init();
             LevelController = new LevelController(this, InputParams);
             LevelController.Init();
-
             PositionController = new PositionController(this, InputParams);
+
+
         }
+
+
 
         protected override void OnTick()
         {
@@ -121,6 +135,7 @@ namespace cAlgo.Robots
 
         protected override void OnBar()
         {
+            Calendar.OnBar();
             LevelController.OnBar();
         }
 

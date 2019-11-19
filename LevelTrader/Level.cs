@@ -22,6 +22,7 @@ namespace cAlgo
         public double DeactivatePrice { get; set; }
         public bool LevelActivated { get; set; }
         public bool Traded { get; set; }
+        public bool OrderCreated { get; set; }
         public Direction Direction { get; set; }
         public int LevelActivatedIndex { get; set; }
         public int BeginBarIndex { get; set; }

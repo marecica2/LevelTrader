@@ -1,4 +1,5 @@
 ﻿using cAlgo.API;
+using cAlgo.API.Internals;
 
 namespace cAlgo
 {
@@ -11,61 +12,25 @@ namespace cAlgo
             this.Robot = robot;
         }
 
-        public double GetVolume(string symbol, double risk, double stopLoss, TradeType tradeType)
+        public double GetVolume(string symbol, double risk, double stopLossPips, TradeType tradeType)
         {
-            double volume;
-            // Robot.Print(symbol + " SL PIP " + stopLoss + " pip value " + Robot.Symbol.TickValue);
-
-            Rates rate =  getRate(symbol);
-            switch (rate)
-            {
-                case Rates.Direct:
-                    volume = Robot.Account.Equity * (risk / 100) / (stopLoss * Robot.Symbol.PipValue);
-                    break;
-                case Rates.Indirect:
-                    double stopLossPrice = tradeType == TradeType.Buy
-                        ? Robot.Symbol.Ask + stopLoss * Robot.Symbol.PipSize
-                        : Robot.Symbol.Bid - stopLoss * Robot.Symbol.PipSize;
-                    volume = Robot.Account.Equity * (risk / 100) * stopLossPrice / (stopLoss * Robot.Symbol.PipValue);
-                    break;
-                default:
-                    volume = 0;
-                    break;
-            }
-            if (symbol.Contains("JPY"))
-                volume = volume * 0.01;
-            // Robot.Print(volume);
-            return (double) Robot.Symbol.NormalizeVolumeInUnits(volume);
+            double riskAmount = Robot.Account.Balance * risk;
+            // double pipValue = Robot.Symbols.GetSymbol(symbol).PipValue;
+            double pipValue = CalculatePipValue(1, tradeType, Robot.Account.Currency, Robot.Symbols.GetSymbol(symbol));
+            double volume = riskAmount / (pipValue * stopLossPips);
+            // Robot.Print("VOLUME FOR {0} with Risk: {1} SL Pips: {2}  is {3}", symbol, risk, stopLossPips, volume);
+            return Robot.Symbol.NormalizeVolumeInUnits(volume);
         }
 
-        private Rates getRate(string symbol)
+        private double CalculatePipValue(double volume, TradeType trade, string accountCurrency, Symbol pair)
         {
-            var rate = Rates.Cross;
-            switch (symbol)
-            {
-                case "EURUSD":
-                case "GBPUSD":
-                case "AUDUSD":
-                case "NZDUSD":
-                    rate = Rates.Direct;
-                    break;
-                case "USDJPY":
-                case "USDCHF":
-                case "USDCAD":
-                    rate = Rates.Indirect;
-                    break;
-                default:
-                    rate = Rates.Cross;
-                    break;
-            }
-            return rate;
+            string baseCurrency = pair.Name.Substring(3);
+            Symbol cross = Robot.Symbols.GetSymbol(accountCurrency + baseCurrency);
+            if (cross == null)
+                cross = Robot.Symbols.GetSymbol(baseCurrency + accountCurrency);
+            double rate = trade == TradeType.Buy ? cross.Ask : cross.Bid;
+            double pip = pair.PipSize * 1 / rate;
+            return pip;
         }
-    }
-
-    enum Rates
-    {
-        Direct,
-        Indirect,
-        Cross
     }
 }
