@@ -73,13 +73,15 @@ namespace cAlgo
 
         private void ApplyProfitStrategy(Position position)
         {
-            Robot.Print("Moving Stoploss to Zero. Reason: Profit is now over {0}", Params.ProfitThreshold);
-            Robot.ModifyPosition(position, position.EntryPrice, position.TakeProfit);
-
-            if (Params.ProfitVolume > 0)
+            if(!modifiedPositions.Contains(position))
             {
-                Robot.ModifyPosition(position, Robot.Symbol.NormalizeVolumeInUnits(position.VolumeInUnits * Params.ProfitVolume));
-                Robot.Print("Partial profit taken for volume {0}", Params.ProfitVolume);
+                Robot.Print("Moving Stoploss to Zero. Reason: Profit is now over {0}", Params.ProfitThreshold);
+                Robot.ModifyPosition(position, position.EntryPrice, position.TakeProfit);
+                if (Params.ProfitVolume > 0)
+                {
+                    Robot.ModifyPosition(position, Robot.Symbol.NormalizeVolumeInUnits(position.VolumeInUnits * Params.ProfitVolume));
+                    Robot.Print("Partial profit taken for volume {0}", Params.ProfitVolume);
+                }
             }
             modifiedPositions.Add(position);
         }

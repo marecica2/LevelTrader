@@ -27,6 +27,9 @@ namespace cAlgo.Robots
         
         [Parameter("Risk Reward Ratio [%]", DefaultValue = 1, MinValue = 0, Group = "Risk Management", Step = 1.0)]
         public double RiskRewardRatio { get; set; }
+        
+        [Parameter("Fixed Risk [Currency]", DefaultValue = 0, MinValue = 0, Group = "Risk Management", Step = 50.0)]
+        public double FixedRisk { get; set; }
 
 
 
@@ -74,6 +77,8 @@ namespace cAlgo.Robots
         [Parameter("Backtest Folder", DefaultValue = "C:\\Users\\marec\\Documents\\TRADING_BACKTEST", Group = "Backtest")]
         public string BackTestPath { get; set; }
 
+
+
         private LevelController LevelController;
 
         private Calendar Calendar;
@@ -97,6 +102,7 @@ namespace cAlgo.Robots
                 PositionSize = PositionSizePercents * 0.01,
                 StopLossPips = DefaultStopLossPips,
                 RiskRewardRatio = RiskRewardRatio * 0.01,
+                FixedRiskAmount = FixedRisk,
 
                 LevelActivate = ActivateLevelPercents * 0.01,
                 LevelDeactivate = DeactivateLevelPercents * 0.01,
@@ -117,14 +123,10 @@ namespace cAlgo.Robots
 
             Calendar = new Calendar(this, InputParams);
             Calendar.Init();
-            LevelController = new LevelController(this, InputParams);
+            LevelController = new LevelController(this, InputParams, Calendar);
             LevelController.Init();
             PositionController = new PositionController(this, InputParams);
-
-
         }
-
-
 
         protected override void OnTick()
         {
@@ -132,13 +134,10 @@ namespace cAlgo.Robots
             PositionController.OnTick();
         }
 
-
         protected override void OnBar()
         {
-            Calendar.OnBar();
             LevelController.OnBar();
         }
-
 
         protected override void OnStop()
         {

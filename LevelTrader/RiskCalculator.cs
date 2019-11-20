@@ -12,11 +12,12 @@ namespace cAlgo
             this.Robot = robot;
         }
 
-        public double GetVolume(string symbol, double risk, double stopLossPips, TradeType tradeType)
+        public double GetVolume(string symbol, double risk, double fixedRisk, double stopLossPips, TradeType tradeType)
         {
-            double riskAmount = Robot.Account.Balance * risk;
-            // double pipValue = Robot.Symbols.GetSymbol(symbol).PipValue;
-            double pipValue = CalculatePipValue(1, tradeType, Robot.Account.Currency, Robot.Symbols.GetSymbol(symbol));
+            double riskAmount = fixedRisk == 0 ? Robot.Account.Balance * risk : fixedRisk;
+
+            double pipValue = Robot.Symbols.GetSymbol(symbol).PipValue;
+            //double pipValue = CalculatePipValue(1, tradeType, Robot.Account.Currency, Robot.Symbols.GetSymbol(symbol));
             double volume = riskAmount / (pipValue * stopLossPips);
             // Robot.Print("VOLUME FOR {0} with Risk: {1} SL Pips: {2}  is {3}", symbol, risk, stopLossPips, volume);
             return Robot.Symbol.NormalizeVolumeInUnits(volume);

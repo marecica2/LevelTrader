@@ -49,5 +49,6 @@
         public double ProfitVolume { get; set; }
         public bool CalendarPause { get; set; }
         public int CalendarBeforeOffset { get; set; }
+        public double FixedRiskAmount { get; internal set; }
     }
 }

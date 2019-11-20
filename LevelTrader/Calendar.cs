@@ -9,7 +9,7 @@ using cAlgo.API;
 
 namespace cAlgo
 {
-    class Calendar
+    public class Calendar
     {
         private static WebClient client = new WebClient();
         private static string URL = "http://cdn-nfs.faireconomy.media/ff_calendar_thisweek.xml";
@@ -43,27 +43,32 @@ namespace cAlgo
             OnBar();
         }
 
-        public List<CalendarEntry> GetEvents(string symbol, DateTime time)
+        public DateTime? GetEventsInAdvance(string symbol)
         {
-            List<CalendarEntry> events = new List<CalendarEntry>();
+            DateTime time = Robot.Server.Time;
+            CalendarEntry last = null;
+            int eventsCount = 0;
+            Boolean hasImpact = false;
+
             foreach (CalendarEntry entry in Entries)
             {
-                if (symbol.Contains(entry.Country) &&
-                    (entry.EventImpact == Impact.HIGH || entry.EventImpact == Impact.MEDIUM) &&
-                    entry.EventTimeBefore <= time &&
-                    entry.EventTimeAfter >= time
-                   )
-                    events.Add(entry);
+                if (symbol.Contains(entry.Country) && entry.EventTimeBefore <= time && entry.EventTimeAfter >= time) {
+                    if (last != null && last.EventTime == entry.EventTime)
+                        eventsCount++;
+                    if (entry.EventImpact >= Impact.MEDIUM)
+                        hasImpact = true;
+                    last = entry;
+                }
             }
-            if (events.Count == 0)
-                return null;
-            return events;
+            if(eventsCount > 0 && hasImpact)
+                return time.AddMinutes(Params.CalendarBeforeOffset * eventsCount);
+
+            return null;
         }
 
         public void OnBar()
         {
-            List<CalendarEntry> events = UpcomingEvents(Robot.Symbol.Name, DateTime.Now);
-
+            List<CalendarEntry> events = UpcomingEvents(Robot.Symbol.Name, Robot.Server.Time);
             string text = "";
             foreach (var evt in events)
             {
