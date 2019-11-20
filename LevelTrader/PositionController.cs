@@ -35,7 +35,9 @@ namespace cAlgo
 
         private double getRiskAmount()
         {
-            return Robot.Account.Balance * Params.RiskRewardRatio;
+            if (Params.FixedRiskAmount > 0)
+                return Params.FixedRiskAmount;
+            return Robot.Account.Balance * Params.PositionSize;
         }
 
         private void ApplyNegativeProfitStrategy(Position position, LossStrategy strategy)

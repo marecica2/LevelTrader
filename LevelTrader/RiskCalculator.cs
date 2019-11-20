@@ -19,7 +19,7 @@ namespace cAlgo
             double pipValue = Robot.Symbols.GetSymbol(symbol).PipValue;
             //double pipValue = CalculatePipValue(1, tradeType, Robot.Account.Currency, Robot.Symbols.GetSymbol(symbol));
             double volume = riskAmount / (pipValue * stopLossPips);
-            // Robot.Print("VOLUME FOR {0} with Risk: {1} SL Pips: {2}  is {3}", symbol, risk, stopLossPips, volume);
+            Robot.Print("VOLUME FOR {0} with Risk: {1} SL Pips: {2}  is {3}", symbol, risk, stopLossPips, volume);
             return Robot.Symbol.NormalizeVolumeInUnits(volume);
         }
 

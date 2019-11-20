@@ -208,7 +208,7 @@ namespace cAlgo
                     Renderer.RenderLevel(level, Paused);
                     if (!Paused)
                     {
-                        double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.RiskRewardRatio, Params.FixedRiskAmount, Params.StopLossPips, trade);
+                        double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, Params.StopLossPips, trade);
                         TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, level.Label, level.StopLoss, level.ProfitTarget, level.ValidTo);
                         Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
                     }

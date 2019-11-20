@@ -24,10 +24,7 @@ namespace cAlgo.Robots
 
         [Parameter("Position Size [%]" ,DefaultValue = 1, MinValue = 0.01, MaxValue = 5, Group = "Risk Management", Step = 1.0)]
         public double PositionSizePercents { get; set; }
-        
-        [Parameter("Risk Reward Ratio [%]", DefaultValue = 1, MinValue = 0, Group = "Risk Management", Step = 1.0)]
-        public double RiskRewardRatio { get; set; }
-        
+                
         [Parameter("Fixed Risk [Currency]", DefaultValue = 0, MinValue = 0, Group = "Risk Management", Step = 50.0)]
         public double FixedRisk { get; set; }
 
@@ -44,7 +41,7 @@ namespace cAlgo.Robots
 
 
 
-        [Parameter("Loss Strategy 0=Full Candles in Negative Area, 1=Candle Bodies in Negative Area, 2=POC in Negative Area", DefaultValue = 0, MinValue = 0, MaxValue = 1, Group = "Stop Loss Control")]
+        [Parameter("Loss Strategy 0=Full Candles in Negative Area, 1=Candle Bodies in Negative Area, 2=POC in Negative Area", DefaultValue = 0, MinValue = 0, MaxValue = 1, Group = "Loss Control")]
         public int LossStrategy { get; set; }
 
         [Parameter("Default Stop Loss [Pips]", DefaultValue = 10, MinValue = 1, Group = "Loss Control")]
@@ -57,6 +54,9 @@ namespace cAlgo.Robots
         public double NegativeBreakEvenOffset { get; set; }
 
 
+
+        [Parameter("Risk Reward Ratio [%]", DefaultValue = 1, MinValue = 0, Group = "Profit Control", Step = 1.0)]
+        public double RiskRewardRatio { get; set; }
 
         [Parameter("Profit Autoclose threshold [% of PT]", DefaultValue = 70, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 1.0)]
         public double ProfitThreshold { get; set; }
@@ -100,8 +100,6 @@ namespace cAlgo.Robots
                 TimeZoneOffset = TimeZoneOffset,
 
                 PositionSize = PositionSizePercents * 0.01,
-                StopLossPips = DefaultStopLossPips,
-                RiskRewardRatio = RiskRewardRatio * 0.01,
                 FixedRiskAmount = FixedRisk,
 
                 LevelActivate = ActivateLevelPercents * 0.01,
@@ -109,9 +107,11 @@ namespace cAlgo.Robots
                 LevelOffset = LevelOffset,
 
                 LossStrategy = (LossStrategy)LossStrategy,
+                StopLossPips = DefaultStopLossPips,
                 CandlesInNegativeArea = CandlesInNegativeArea,
                 NegativeBreakEvenOffset = NegativeBreakEvenOffset * 0.01,
 
+                RiskRewardRatio = RiskRewardRatio * 0.01,
                 ProfitThreshold = ProfitThreshold * 0.01,
                 ProfitVolume = ProfitVolume * 0.01,
 
