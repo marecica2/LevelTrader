@@ -42,35 +42,34 @@ namespace cAlgo
 
         private void ApplyNegativeProfitStrategy(Position position, LossStrategy strategy)
         {
-            int numOfCandles = 0;
-            for (int i = positionStartIndex(position); i < lastBarIndex(); i++)
-            {
+            int negativeBarsCount = 0;
+            for (int i = positionStartIndex(position) + 1; i < lastBarIndex() - 1; i++) // check only for finished bars
                 if (IsInNegativeArea(i, position, strategy))
-                    numOfCandles++;
-            }
-            if (numOfCandles >= Params.CandlesInNegativeArea)
+                    negativeBarsCount++;
+
+            Func<Position, double> negativeBreakOffset = p => (p.EntryPrice - p.StopLoss.Value) * Params.NegativeBreakEvenOffset;
+            if (position.TradeType == TradeType.Sell)
+                negativeBreakOffset = p => (p.StopLoss.Value - p.EntryPrice) * -Params.NegativeBreakEvenOffset;
+
+            if (negativeBarsCount == Params.CandlesInNegativeArea)
             {
-                Robot.Print("Moving Profit to Breakeven as {0}% of original Stop Loss. Reason: {1} candle(s) in negative area", Params.NegativeBreakEvenOffset, numOfCandles);
-                if (position.TradeType == TradeType.Buy)
+                Robot.Print("Moving Profit to Breakeven as {0}% of original Stop Loss. Reason: {1} candle(s) in negative area", Params.NegativeBreakEvenOffset, negativeBarsCount);
+                double newPrice = position.EntryPrice - negativeBreakOffset(position);
+                TradeResult result = Robot.ModifyPosition(position, position.StopLoss, newPrice);
+                if(result.IsSuccessful)
                 {
-                    double negativeBreakOffset = (position.EntryPrice - position.StopLoss.Value) * Params.NegativeBreakEvenOffset;
-                    TradeResult res = Robot.ModifyPosition(position, position.StopLoss, position.EntryPrice - negativeBreakOffset);
-                    if(!res.IsSuccessful)
-                    {
-                        Robot.Print(res.Error.Value);
-                    }
-                }
-                else
+                    Robot.Print(result.Error);
+                    modifiedPositions.Add(position);
+                } else
                 {
-                    double negativeBreakOffset = (position.StopLoss.Value - position.EntryPrice) * Params.NegativeBreakEvenOffset;
-                    TradeResult res = Robot.ModifyPosition(position, position.StopLoss, position.EntryPrice + negativeBreakOffset);
-                    if (!res.IsSuccessful)
-                    {
-                        Robot.Print(res.Error.Value);
-                    }
+                    Robot.Print(result.Error.ToString());
                 }
-                modifiedPositions.Add(position);
             }
+        }
+
+        private double LastPrice(TradeType tradeType)
+        {
+            return tradeType == TradeType.Buy ? Robot.Symbol.Bid : Robot.Symbol.Ask;
         }
 
         private void ApplyProfitStrategy(Position position)
@@ -93,7 +92,9 @@ namespace cAlgo
             if (strategy == LossStrategy.FULL_CANDLE)
             {
                 if (position.TradeType == TradeType.Buy)
+                {
                     return Robot.MarketSeries.High[index] < position.EntryPrice;
+                }
                 return Robot.MarketSeries.Low[index] > position.EntryPrice;
             }
 

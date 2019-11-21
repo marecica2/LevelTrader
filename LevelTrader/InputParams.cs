@@ -48,7 +48,7 @@
         public double ProfitThreshold { get; set; }
         public double ProfitVolume { get; set; }
         public bool CalendarPause { get; set; }
-        public int CalendarBeforeOffset { get; set; }
+        public int CalendarEventDuration { get; set; }
         public double FixedRiskAmount { get; internal set; }
     }
 }

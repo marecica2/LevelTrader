@@ -65,36 +65,25 @@ namespace cAlgo
         public void OnBar()
         {
             DateTime time = Robot.Server.TimeInUtc;
-            if(Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute)
+            if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute)
             {
                 Init();
-                Calendar.Init();
                 Robot.Print("Auto-reload on scheduled time {0} UTC executed successfully", time);
             }
- 
-            if(!Paused)
+
+            if(Params.CalendarPause)
             {
-                PausedUntil = Calendar.GetEventsInAdvance(Robot.Symbol.Name);
-                if (!Paused && PausedUntil != null)
+                bool paused = Calendar.IsPaused();
+                if (paused != Paused)
                 {
-                    Paused = true;
-                    Robot.Print("Pausing execution until {0}", PausedUntil.Value);
-                    Renderer.Render(Levels, true);
-                    foreach (Level level in Levels)
-                    {
-                        CancelPendingOrder(level);
-                    }
-                } 
-            }
+                    Renderer.Render(Levels, paused);
+                    Paused = paused;
+                    if (Paused)
+                        foreach (Level level in Levels)
+                            CancelPendingOrder(level, "Ongoing calendar event with expected impact");
+                }
 
-            if (Paused && time >= PausedUntil.Value)
-            {
-                Paused = false;
-                Robot.Print("Resuming execution");
-                Renderer.Render(Levels, false);
             }
-
-            Calendar.OnBar();
         }
 
         private void Initialize(List<Level> levels)
@@ -127,6 +116,7 @@ namespace cAlgo
                 }
                 idx++;
             }
+            Robot.Print("Number of levels loaded: {0}", Levels.Count);
         }
 
         private void GetDirection(Level level, int levelFirstBarIndex)
@@ -217,7 +207,7 @@ namespace cAlgo
                 if (isLevelGoneBack(level) && level.Traded && !level.LevelDeactivated)
                 {
                     level.LevelDeactivated = true;
-                    CancelPendingOrder(level);
+                    CancelPendingOrder(level, "Deactivate Level reached");
                 }
             }
   
@@ -228,13 +218,13 @@ namespace cAlgo
             return level.ValidFrom < Robot.Server.TimeInUtc && Robot.Server.TimeInUtc < level.ValidTo && !level.Traded;
         }
 
-        private void CancelPendingOrder(Level level)
+        private void CancelPendingOrder(Level level, string reason)
         {
             foreach (var order in Robot.PendingOrders)
             {
                 if (order.Label == level.Label)
                 {
-                    Robot.Print("Order for level {0} cancelled. Reason Deactivate Level reached", level.Label);
+                    Robot.Print("Order for level {0} cancelled. Reason: {1}", level.Label, reason);
                     Robot.CancelPendingOrder(order);
                 }
             }

@@ -13,10 +13,11 @@ namespace cAlgo
     {
         private static WebClient client = new WebClient();
         private static string URL = "http://cdn-nfs.faireconomy.media/ff_calendar_thisweek.xml";
-
         private Robot Robot { get; set; }
         private InputParams Params { get; set; }
         private List<CalendarEntry> Entries;
+        private DateTime? PausedUntil;
+        private bool Paused = false;
 
         public Calendar(Robot robot, InputParams inputParams)
         {
@@ -31,56 +32,60 @@ namespace cAlgo
 
             foreach (CalendarEntry entry in Entries)
             {
-                entry.EventTimeBefore = entry.EventTime.AddMinutes(-Params.CalendarBeforeOffset);
-                entry.EventTimeAfter = entry.EventTime.AddMinutes(Params.CalendarBeforeOffset);
-                //if(entry.Country != country && entry.EventTime != time)
-                //{
-                //    time = entry.EventTime;
-                //    country = entry.Country;
-                //}
-                //Robot.Print(entry);
+                entry.EventTimeBefore = entry.EventTime.AddMinutes(-Params.CalendarEventDuration);
+                entry.EventTimeAfter = entry.EventTime.AddMinutes(Params.CalendarEventDuration);
             }
-            OnBar();
-        }
-
-        public DateTime? GetEventsInAdvance(string symbol)
-        {
-            DateTime time = Robot.Server.Time;
-            CalendarEntry last = null;
-            int eventsCount = 0;
-            Boolean hasImpact = false;
-
-            foreach (CalendarEntry entry in Entries)
-            {
-                if (symbol.Contains(entry.Country) && entry.EventTimeBefore <= time && entry.EventTimeAfter >= time) {
-                    if (last != null && last.EventTime == entry.EventTime)
-                        eventsCount++;
-                    if (entry.EventImpact >= Impact.MEDIUM)
-                        hasImpact = true;
-                    last = entry;
-                }
-            }
-            if(eventsCount > 0 && hasImpact)
-                return time.AddMinutes(Params.CalendarBeforeOffset * eventsCount);
-
-            return null;
+            RefreshCalendar();
         }
 
         public void OnBar()
+        {
+            DateTime time = Robot.Server.TimeInUtc;
+            if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute)
+                Init();
+            RefreshCalendar();
+        }
+
+        public void RefreshCalendar()
         {
             List<CalendarEntry> events = UpcomingEvents(Robot.Symbol.Name, Robot.Server.Time);
             string text = "";
             foreach (var evt in events)
             {
-                text += evt.Country + " " + evt.EventImpact + " " + evt.EventTime + " " + Utils.Truncate(evt.Comment, 20) + "\r\n";
+                if(evt.EventImpact >= Impact.MEDIUM)
+                    text += evt.Country + " " + evt.EventImpact + " " + evt.EventTime + " " + Utils.Truncate(evt.Comment, 30) + "\r\n";
             }
             Robot.Chart.DrawStaticText("calendar", text, VerticalAlignment.Bottom, HorizontalAlignment.Left, Color.Gray);
-            
+        }
+
+        public bool IsPaused()
+        {
+            DateTime time = Robot.Server.TimeInUtc;
+            DateTime ?pausedUntil = GetEventsInAdvance(Robot.Symbol.Name);
+            if (pausedUntil != null)
+            {
+                PausedUntil = pausedUntil;
+                //Robot.Print("Impact events until {0}", PausedUntil.Value);
+                return true;
+            }
+
+            if(PausedUntil != null && time < PausedUntil)
+            {
+                return true;
+            }
+
+            if (PausedUntil != null && time > PausedUntil)
+            {           
+                //Robot.Print("Impact Events finished");
+                PausedUntil = null;
+                return false;
+            }
+            return false;
         }
 
         public List<CalendarEntry> UpcomingEvents(string symbol, DateTime time)
         {
-            int maxEvents = 5;
+            int maxEvents = 7;
             int count = 0;
             List<CalendarEntry> events = new List<CalendarEntry>();
             foreach (CalendarEntry entry in Entries)
@@ -92,6 +97,39 @@ namespace cAlgo
                 }
             }
             return events;
+        }
+
+        private DateTime? GetEventsInAdvance(string symbol)
+        {
+            DateTime time = Robot.Server.Time;
+            CalendarEntry last = null;
+            List<CalendarEntry> group = new List<CalendarEntry>();
+            foreach (CalendarEntry entry in Entries)
+            {
+                if (symbol.Contains(entry.Country) && entry.EventTimeBefore.AddMinutes(-5) <= time && time <= entry.EventTimeBefore.AddMinutes(5))
+                {
+                    if (last == null || last.EventTime == entry.EventTime)
+                        group.Add(entry);
+                    last = entry;
+                }
+            }
+
+            bool hasImpact = false;
+            foreach (CalendarEntry entry in group)
+            {
+                if (hasImpact == false && entry.EventImpact >= Impact.MEDIUM)
+                {
+                    hasImpact = true;
+                }
+            }
+
+            if (hasImpact && group.Count > 0)
+            {
+                //foreach (CalendarEntry entry in group)
+                //    Robot.Print("Calendar entry " + entry.ToString());
+                return group[0].EventTime.AddMinutes(Params.CalendarEventDuration * group.Count);
+            }
+            return null;
         }
 
         private XDocument LoadXml()
@@ -178,10 +216,10 @@ namespace cAlgo
 
     public enum Impact
     {
+        HOLIDAY,
         LOW,
         MEDIUM,
         HIGH,
-        HOLIDAY,
     }
 
 }

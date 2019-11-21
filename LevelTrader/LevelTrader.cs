@@ -14,15 +14,15 @@ namespace cAlgo.Robots
         [Parameter("File Name", DefaultValue = "FE_NT8.xml", Group = "Input")]
         public string FileName { get; set; }
 
-        [Parameter("Time Zone Offset to UTC", DefaultValue = -1, MinValue = -12, MaxValue = 12, Group = "Input")]
+        [Parameter("Time Zone Offset to UTC [Hrs]", DefaultValue = -1, MinValue = -12, MaxValue = 12, Group = "Input")]
         public int TimeZoneOffset { get; set; }
 
-        [Parameter("Daily Update Time" ,DefaultValue = "08:35", Group = "Input")]
+        [Parameter("Daily Update Time [UTC]" ,DefaultValue = "07:35", Group = "Input")]
         public string DailyReloadTime { get; set; }
 
 
 
-        [Parameter("Position Size [%]" ,DefaultValue = 1, MinValue = 0.01, MaxValue = 5, Group = "Risk Management", Step = 1.0)]
+        [Parameter("Position Size [%]" ,DefaultValue = 1, MinValue = 0.01, MaxValue = 10, Group = "Risk Management", Step = 0.5)]
         public double PositionSizePercents { get; set; }
                 
         [Parameter("Fixed Risk [Currency]", DefaultValue = 0, MinValue = 0, Group = "Risk Management", Step = 50.0)]
@@ -30,10 +30,10 @@ namespace cAlgo.Robots
 
 
 
-        [Parameter("Activate Level Distance [%]", DefaultValue = 33, MinValue = 0, MaxValue = 100, Group = "Level Control")]
+        [Parameter("Activate Level Distance [%]", DefaultValue = 30, MinValue = 0, MaxValue = 100, Group = "Level Control")]
         public int ActivateLevelPercents { get; set; }
 
-        [Parameter("Deactivate Level Distance [%]", DefaultValue = 77, MinValue = 0, MaxValue = 100, Group = "Level Control", Step = 1.0)]
+        [Parameter("Deactivate Level Distance [%]", DefaultValue = 90, MinValue = 0, MaxValue = 100, Group = "Level Control", Step = 1.0)]
         public int DeactivateLevelPercents { get; set; }
 
         [Parameter("Level Offset [Pips]", DefaultValue = 0, MinValue = -100, MaxValue = 100, Group = "Level Control", Step = 1.0)]
@@ -44,13 +44,13 @@ namespace cAlgo.Robots
         [Parameter("Loss Strategy 0=Full Candles in Negative Area, 1=Candle Bodies in Negative Area, 2=POC in Negative Area", DefaultValue = 0, MinValue = 0, MaxValue = 1, Group = "Loss Control")]
         public int LossStrategy { get; set; }
 
-        [Parameter("Default Stop Loss [Pips]", DefaultValue = 10, MinValue = 1, Group = "Loss Control")]
+        [Parameter("Default Stop Loss [Pips]", DefaultValue = 8, MinValue = 1, Group = "Loss Control")]
         public int DefaultStopLossPips { get; set; }
 
-        [Parameter("Number of Candles in Negative Area", DefaultValue = 2, MinValue = 0, Group = "Loss Control")]
+        [Parameter("Number of Candles in Negative Area", DefaultValue = 3, MinValue = 0, Group = "Loss Control")]
         public int CandlesInNegativeArea { get; set; }
 
-        [Parameter("Negative BE Offset [% of SL]", DefaultValue = 10, MinValue = -100, MaxValue = 100, Group = "Loss Control", Step = 1.0)]
+        [Parameter("Negative BE Offset [% of SL]", DefaultValue = 5, MinValue = -100, MaxValue = 100, Group = "Loss Control", Step = 1.0)]
         public double NegativeBreakEvenOffset { get; set; }
 
 
@@ -58,10 +58,10 @@ namespace cAlgo.Robots
         [Parameter("Risk Reward Ratio [%]", DefaultValue = 1, MinValue = 0, Group = "Profit Control", Step = 1.0)]
         public double RiskRewardRatio { get; set; }
 
-        [Parameter("Profit Autoclose threshold [% of PT]", DefaultValue = 70, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 1.0)]
+        [Parameter("Profit Autoclose threshold [% of PT]", DefaultValue = 60, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 5.0)]
         public double ProfitThreshold { get; set; }
 
-        [Parameter("Profit Volume [% of PT]", DefaultValue = 50, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 1.0)]
+        [Parameter("Profit Volume [% of PT]", DefaultValue = 50, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 5.0)]
         public double ProfitVolume { get; set; }
 
 
@@ -116,7 +116,7 @@ namespace cAlgo.Robots
                 ProfitVolume = ProfitVolume * 0.01,
 
                 CalendarPause = CalendarPause,
-                CalendarBeforeOffset = CalendarBeforeOffset,
+                CalendarEventDuration = CalendarBeforeOffset,
 
                 BackTestPath = BackTestPath,
             };
@@ -136,6 +136,7 @@ namespace cAlgo.Robots
 
         protected override void OnBar()
         {
+            Calendar.OnBar();
             LevelController.OnBar();
         }
 
