@@ -38,7 +38,7 @@ namespace cAlgo
             RefreshCalendar();
         }
 
-        public void OnBar()
+        public void OnMinute()
         {
             DateTime time = Robot.Server.TimeInUtc;
             if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute)

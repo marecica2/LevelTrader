@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Xml.Linq;
 using cAlgo.API;
 
@@ -41,10 +42,14 @@ namespace cAlgo
         public void Init()
         {
             XDocument xml = LoadXml();
-            Levels = new LevelParser().Parse(xml, Params, Robot.Server.Time);
-            Initialize(Levels);
-            AnalyzeHistory(Levels);
-            Renderer.Render(Levels);
+            if(xml != null)
+            {
+                Levels = new List<Level>();
+                Levels = new LevelParser().Parse(xml, Params, Robot.Server.Time);
+                Initialize(Levels);
+                AnalyzeHistory(Levels);
+                Renderer.Render(Levels);
+            }
         }
 
         private XDocument LoadXml()
@@ -57,6 +62,10 @@ namespace cAlgo
                 filePath = Params.BackTestPath + "\\" + time.Year + "-" + time.Month + "-" + time.Day + " (" + week + ")\\";
             }
             filePath += Params.LevelFileName;
+            if(!File.Exists(filePath)) {
+                Robot.Print("File {0} not found", filePath);
+                return null;
+            }
             Robot.Print("Loading file {0}", filePath);
             return XDocument.Load(filePath);
         }
@@ -66,7 +75,7 @@ namespace cAlgo
             AnalyzeLevelsOnTick();
         }
 
-        public void OnBar(double dailyAtr)
+        public void OnMinute(double dailyAtr)
         {
             DailyAtr = dailyAtr;
             DateTime time = Robot.Server.TimeInUtc;
@@ -76,7 +85,7 @@ namespace cAlgo
                 Robot.Print("Auto-reload on scheduled time {0} UTC executed successfully", time);
             }
 
-            if(Params.CalendarPause)
+            if (Params.CalendarPause)
             {
                 bool paused = Calendar.IsPaused();
                 if (paused != Paused)
@@ -87,7 +96,6 @@ namespace cAlgo
                         foreach (Level level in Levels)
                             CancelPendingOrder(level, "Ongoing calendar event with expected impact");
                 }
-
             }
         }
 
@@ -219,9 +227,9 @@ namespace cAlgo
                     Renderer.RenderLevel(level, Paused);
                     if (!Paused && !IsSpike(level.Direction == Direction.LONG ? TradeType.Sell : TradeType.Buy))
                     {
-                        double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, Params.DefaultStopLossPips, trade);
+                        double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, level.StopLossPips, trade);
                         TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, level.Label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo);
-                        Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, Params.DefaultStopLossPips, trade);
+                        Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, level.StopLossPips, trade);
                         Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
                     }
                     else
@@ -245,11 +253,26 @@ namespace cAlgo
                 return false;
 
             int barsCount = 4;
-            double pipsBars = GetVolatilityPips(direction, barsCount);
-            double pipsBar = GetVolatilityPips(direction);
-            bool isSpike = pipsBars >= DailyAtr * 0.5 || pipsBar > DailyAtr * 0.3;
+            double barPercentage = 0.3;
+            double barsPercentage = 0.5;
+            if(Params.StrategyType == StrategyType.SWING)
+            {
+                barPercentage = 0.5;
+                barsPercentage = 1;
+            }
+            if (Params.StrategyType == StrategyType.INVEST)
+            {
+                barPercentage = 1;
+                barsPercentage = 1.5;
+            }
+
+
+            double lastBarVolatility = GetVolatilityPips(direction);
+            double lastBarsVolatility = GetVolatilityPips(direction, barsCount);
+            Robot.Print("aaaaa " + DailyAtr + " " + lastBarVolatility + " " + lastBarsVolatility);
+            bool isSpike = lastBarsVolatility >= DailyAtr * barsPercentage || lastBarVolatility > DailyAtr * barPercentage;
             if (isSpike)
-                Robot.Print("Spike detected. Volatility on last bar: {0} pips Volatility on last {0} bars: {1} pips", pipsBar, barsCount, pipsBars);
+                Robot.Print("Spike detected. Volatility on last bar: {0} pips Volatility on last {1} bars: {2} pips. Avg Daily Atr was {3}", lastBarVolatility, barsCount, lastBarsVolatility, DailyAtr);
             return isSpike;
         }
 

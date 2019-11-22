@@ -99,6 +99,8 @@ namespace cAlgo.Robots
 
         protected override void OnStart()
         {
+            Timer.Start(60);
+
             InputParams = new InputParams
             {
                 StrategyType = StrategyType,
@@ -150,11 +152,11 @@ namespace cAlgo.Robots
             PositionController.OnTick();
         }
 
-        protected override void OnBar()
+        protected override void OnTimer()
         {
-            Calendar.OnBar();
-            double atrPips = Math.Round(atr.Result[atr.Result.Count - 1] / Symbol.PipSize) ;
-            LevelController.OnBar(atrPips);
+            Calendar.OnMinute();
+            double atrPips = Math.Round(atr.Result[atr.Result.Count - 1] / Symbol.PipSize);
+            LevelController.OnMinute(atrPips);
         }
 
         protected override void OnStop()
