@@ -9,6 +9,9 @@ namespace cAlgo.Robots
     [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.FullAccess)]
     public class LevelTrader : Robot
     {
+        [Parameter("Strategy", DefaultValue = 0, Group = "Input")]
+        public StrategyType StrategyType { get; set; }
+
         [Parameter("Folder", DefaultValue = "C:\\Users\\marec\\Documents\\NinjaTrader 8\\bin\\MarketProfitPack\\CustomLevels\\", Group = "Input")]
         public string FilePath { get; set; }
 
@@ -37,13 +40,13 @@ namespace cAlgo.Robots
         [Parameter("Deactivate Level Distance [%]", DefaultValue = 90, MinValue = 0, MaxValue = 100, Group = "Level Control", Step = 1.0)]
         public int DeactivateLevelPercents { get; set; }
 
-        [Parameter("Level Offset [Pips]", DefaultValue = 0, MinValue = -100, MaxValue = 100, Group = "Level Control", Step = 1.0)]
+        [Parameter("Level Offset [Ticks]", DefaultValue = 0, MinValue = -100, MaxValue = 100, Group = "Level Control", Step = 1.0)]
         public double LevelOffset { get; set; }
 
 
 
-        [Parameter("Loss Strategy 0=Full Candles in Negative Area, 1=Candle Bodies in Negative Area, 2=POC in Negative Area", DefaultValue = 0, MinValue = 0, MaxValue = 1, Group = "Loss Control")]
-        public int LossStrategy { get; set; }
+        [Parameter("Loss Strategy", DefaultValue = 0, MinValue = 0, MaxValue = 1, Group = "Loss Control")]
+        public LossStrategy LossStrategy { get; set; }
 
         [Parameter("Default Stop Loss [Pips]", DefaultValue = 8, MinValue = 1, Group = "Loss Control")]
         public int DefaultStopLossPips { get; set; }
@@ -98,6 +101,7 @@ namespace cAlgo.Robots
         {
             InputParams = new InputParams
             {
+                StrategyType = StrategyType,
                 Instrument = Symbol.Name,
                 LastPrice = Symbol.Bid,
                 LevelFilePath = FilePath,
@@ -113,8 +117,8 @@ namespace cAlgo.Robots
                 LevelDeactivate = DeactivateLevelPercents * 0.01,
                 LevelOffset = LevelOffset,
 
-                LossStrategy = (LossStrategy)LossStrategy,
-                StopLossPips = DefaultStopLossPips,
+                LossStrategy = LossStrategy,
+                DefaultStopLossPips = DefaultStopLossPips,
                 UseAtrBasedStoppLossPips = UseAtrBasedStoppLossPips,
                 PreventSpikes = PreventSpikes,
                 CandlesInNegativeArea = CandlesInNegativeArea,

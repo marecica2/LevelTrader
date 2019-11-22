@@ -19,6 +19,7 @@
         public double LastPrice { get; set; }
 
         // Input params
+        public StrategyType StrategyType { get; set; }
         public int TimeZoneOffset { get; set; }
         public string LevelFilePath { get; set; }
         public string LevelFileName { get; set; }
@@ -27,7 +28,7 @@
 
         // Risk Management
         public double PositionSize { get; set; }
-        public int StopLossPips { get; set; }
+        public int DefaultStopLossPips { get; set; }
         public double RiskRewardRatio { get; set; }
 
         // Level params

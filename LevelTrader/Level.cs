@@ -8,6 +8,12 @@ namespace cAlgo
         SHORT,
     }
 
+    public class LinkedLevel
+    {
+        public string Id { get; set; }
+        public int Pips { get; set; }
+    }
+
     public class Level
     {
         public string Id { get; set; }
@@ -26,13 +32,18 @@ namespace cAlgo
         public Direction Direction { get; set; }
         public int LevelActivatedIndex { get; set; }
         public int BeginBarIndex { get; set; }
-        public int StopLoss { get; set; }
-        public double ProfitTarget { get; set; }
+        public int StopLossPips { get; set; }
+        public int ProfitTargetPips { get; set; }
+
+        public LinkedLevel LinkedLevel1 { get; set; }
+        public LinkedLevel LinkedLevel2 { get; set; }
 
         override public string ToString()
         {
             return Label + " " + Symbol + 
                 " Price: " + EntryPrice + 
+                " SL " + StopLossPips + 
+                " PT " + ProfitTargetPips +
                 " Validity:" + ValidFrom + " - " + ValidTo + 
                 " Direction: " + Direction +
                 " Traded: " + Traded;

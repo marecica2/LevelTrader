@@ -21,6 +21,14 @@ namespace cAlgo
         }
 
 
+        public static DateTime StartOfWeek(DateTime dt, DayOfWeek startOfWeek)
+        {
+            int diff = (7 + (dt.DayOfWeek - startOfWeek)) % 7;
+            DateTime start = dt.AddDays(-1 * diff).Date;
+            return new DateTime(start.Year, start.Month, start.Day, 0, 0, 0);
+        }
+
+
         public static string Truncate(string value, int maxChars)
         {
             return value.Length <= maxChars ? value : value.Substring(0, maxChars) + "...";

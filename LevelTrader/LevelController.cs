@@ -7,6 +7,10 @@ namespace cAlgo
 {
     public class LevelController
     {
+        private static int MIN_STOP_LOSS_PIPS = 5;
+
+        private static double SL_DAILY_ATR_PERCENTAGE = 0.15;
+
         private Robot Robot { get; set; }
 
         private InputParams Params { get; set; }
@@ -37,7 +41,7 @@ namespace cAlgo
         public void Init()
         {
             XDocument xml = LoadXml();
-            Levels = new LevelParser().Parse(xml, Params);
+            Levels = new LevelParser().Parse(xml, Params, Robot.Server.Time);
             Initialize(Levels);
             AnalyzeHistory(Levels);
             Renderer.Render(Levels);
@@ -92,30 +96,33 @@ namespace cAlgo
             int idx = 0;
             foreach (Level level in Levels)
             {
+                Robot.Print(level);
                 level.Id = Params.LevelFileName + "_" + idx;
                 level.BeginBarIndex = Robot.MarketSeries.OpenTime.GetIndexByTime(level.ValidFrom);
                 GetDirection(level, level.BeginBarIndex);
                 level.EntryPrice = level.Direction == Direction.LONG ? 
                     level.EntryPrice + Params.LevelOffset * Robot.Symbol.TickSize : 
                     level.EntryPrice - Params.LevelOffset * Robot.Symbol.TickSize;
-                level.StopLoss = Params.UseAtrBasedStoppLossPips == true ? 
-                    (int) Math.Max(Math.Ceiling(DailyAtr * 0.15), 5) : 
-                    Params.StopLossPips;
-                level.ProfitTarget = Params.StopLossPips * Params.RiskRewardRatio * 100;
+                if(level.StopLossPips == 0)
+                    level.StopLossPips = Params.UseAtrBasedStoppLossPips == true ? 
+                        (int) Math.Round(Math.Max(DailyAtr * SL_DAILY_ATR_PERCENTAGE, MIN_STOP_LOSS_PIPS)) : 
+                        Params.DefaultStopLossPips;
+                if (level.ProfitTargetPips == 0)
+                    level.ProfitTargetPips = (int) (level.StopLossPips * Params.RiskRewardRatio * 100);
 
                 if(level.Direction == Direction.LONG)
                 {
-                    level.StopLossPrice = level.EntryPrice - Params.StopLossPips * Robot.Symbol.PipSize;
-                    level.ProfitTargetPrice = level.EntryPrice + Params.StopLossPips * Params.RiskRewardRatio * 100 * Robot.Symbol.PipSize;
-                    level.ActivatePrice = level.EntryPrice + Params.StopLossPips * Robot.Symbol.PipSize * Params.LevelActivate;
-                    level.DeactivatePrice = level.EntryPrice + Params.StopLossPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
+                    level.StopLossPrice = level.EntryPrice - level.StopLossPips * Robot.Symbol.PipSize;
+                    level.ProfitTargetPrice = level.EntryPrice + level.ProfitTargetPips * Params.RiskRewardRatio * 100 * Robot.Symbol.PipSize;
+                    level.ActivatePrice = level.EntryPrice + level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelActivate;
+                    level.DeactivatePrice = level.EntryPrice + level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
                 }
                 else
                 {
-                    level.StopLossPrice = level.EntryPrice + Params.StopLossPips * Robot.Symbol.PipSize;
-                    level.ProfitTargetPrice = level.EntryPrice - Params.StopLossPips * Params.RiskRewardRatio * 100 * Robot.Symbol.PipSize;
-                    level.ActivatePrice = level.EntryPrice - Params.StopLossPips * Robot.Symbol.PipSize * Params.LevelActivate;
-                    level.DeactivatePrice = level.EntryPrice - Params.StopLossPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
+                    level.StopLossPrice = level.EntryPrice + level.StopLossPips * Robot.Symbol.PipSize;
+                    level.ProfitTargetPrice = level.EntryPrice - level.ProfitTargetPips * Params.RiskRewardRatio * 100 * Robot.Symbol.PipSize;
+                    level.ActivatePrice = level.EntryPrice - level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelActivate;
+                    level.DeactivatePrice = level.EntryPrice - level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
                 }
                 idx++;
             }
@@ -212,9 +219,9 @@ namespace cAlgo
                     Renderer.RenderLevel(level, Paused);
                     if (!Paused && !IsSpike(level.Direction == Direction.LONG ? TradeType.Sell : TradeType.Buy))
                     {
-                        double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, Params.StopLossPips, trade);
-                        TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, level.Label, level.StopLoss, level.ProfitTarget, level.ValidTo);
-                        Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, Params.StopLossPips, trade);
+                        double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, Params.DefaultStopLossPips, trade);
+                        TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, level.Label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo);
+                        Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, Params.DefaultStopLossPips, trade);
                         Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
                     }
                     else
@@ -288,7 +295,5 @@ namespace cAlgo
                 }
             }
         }
-
-
     }
 }
