@@ -19,6 +19,8 @@ namespace cAlgo
 
         private RiskCalculator Calculator;
 
+        private double DailyAtr { get; set; }
+        
         private bool Paused = false;
 
         private DateTime ?PausedUntil;
@@ -55,15 +57,14 @@ namespace cAlgo
             return XDocument.Load(filePath);
         }
 
-
-
         public void OnTick()
         {
             AnalyzeLevelsOnTick();
         }
 
-        public void OnBar()
+        public void OnBar(double dailyAtr)
         {
+            DailyAtr = dailyAtr;
             DateTime time = Robot.Server.TimeInUtc;
             if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute)
             {
@@ -97,7 +98,9 @@ namespace cAlgo
                 level.EntryPrice = level.Direction == Direction.LONG ? 
                     level.EntryPrice + Params.LevelOffset * Robot.Symbol.TickSize : 
                     level.EntryPrice - Params.LevelOffset * Robot.Symbol.TickSize;
-                level.StopLoss = Params.StopLossPips;
+                level.StopLoss = Params.UseAtrBasedStoppLossPips == true ? 
+                    (int) Math.Max(Math.Ceiling(DailyAtr * 0.15), 5) : 
+                    Params.StopLossPips;
                 level.ProfitTarget = Params.StopLossPips * Params.RiskRewardRatio * 100;
 
                 if(level.Direction == Direction.LONG)
@@ -176,17 +179,16 @@ namespace cAlgo
 
         private void AnalyzeLevelsOnTick()
         {
-
             int idx = Robot.MarketSeries.Close.Count - 1;
             foreach (Level level in Levels)
             {
                 TradeType trade = TradeType.Buy;
                 Func<Level, bool> isLevelCrossed = l => Robot.Symbol.Bid <= l.ActivatePrice;
-                Func<Level, bool> isLevelGoneBack = l => Robot.Symbol.Bid > l.DeactivatePrice;
+                Func<Level, bool> isLevelGoneAway = l => Robot.Symbol.Bid > l.DeactivatePrice;
                 if (level.Direction == Direction.SHORT)
                 {
                     isLevelCrossed = l => Robot.Symbol.Ask >= l.ActivatePrice && !l.LevelActivated;
-                    isLevelGoneBack = l => Robot.Symbol.Ask < l.DeactivatePrice && l.LevelActivated;
+                    isLevelGoneAway = l => Robot.Symbol.Ask < l.DeactivatePrice && l.LevelActivated;
                     trade = TradeType.Sell;
                 }
 
@@ -196,21 +198,66 @@ namespace cAlgo
                     level.LevelActivatedIndex = idx;
                     level.Traded = true;
                     Renderer.RenderLevel(level, Paused);
-                    if (!Paused)
+                    if (!Paused && !IsSpike(level.Direction == Direction.LONG ? TradeType.Sell : TradeType.Buy))
                     {
                         double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, Params.StopLossPips, trade);
                         TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, level.Label, level.StopLoss, level.ProfitTarget, level.ValidTo);
+                        Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, Params.StopLossPips, trade);
                         Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
+                    }
+                    else
+                    {
+                        Robot.Print("Order skipped because of Calendar Event / Spike against");
                     }
                 }
 
-                if (isLevelGoneBack(level) && level.Traded && !level.LevelDeactivated)
+                if (isLevelGoneAway(level) && level.Traded && !level.LevelDeactivated)
                 {
                     level.LevelDeactivated = true;
                     CancelPendingOrder(level, "Deactivate Level reached");
                 }
             }
   
+        }
+
+        private bool IsSpike(TradeType direction)
+        {
+            if (Params.PreventSpikes == false)
+                return false;
+
+            int barsCount = 4;
+            double pipsBars = GetVolatilityPips(direction, barsCount);
+            double pipsBar = GetVolatilityPips(direction);
+            bool isSpike = pipsBars >= DailyAtr * 0.5 || pipsBar > DailyAtr * 0.3;
+            if (isSpike)
+                Robot.Print("Spike detected. Volatility on last bar: {0} pips Volatility on last {0} bars: {1} pips", pipsBar, barsCount, pipsBars);
+            return isSpike;
+        }
+
+        private double GetVolatilityPips(TradeType direction, int lastBarsCount = 1)
+        {
+            int currentBar = Robot.MarketSeries.Close.Count - 1;
+            int firstBar = Robot.MarketSeries.Close.Count - lastBarsCount;
+            double distanceInPips = 0;
+            if(direction == TradeType.Buy)
+            {
+                double minLow = Robot.MarketSeries.Low[currentBar];
+                for (int i = firstBar; i <= currentBar; i++)
+                    if (Robot.MarketSeries.Low[i] < minLow)
+                        minLow = Robot.MarketSeries.Low[i];
+
+                distanceInPips = Robot.MarketSeries.High[currentBar] - minLow;
+            } else
+            {
+                double maxHigh = Robot.MarketSeries.High[currentBar];
+                for (int i = firstBar; i <= currentBar; i++)
+                    if (Robot.MarketSeries.Low[i] > maxHigh)
+                        maxHigh = Robot.MarketSeries.High[i];
+
+                distanceInPips = maxHigh - Robot.MarketSeries.Low[currentBar];
+            }
+
+            return Math.Round(distanceInPips, Robot.Symbol.Digits) / Robot.Symbol.PipSize;
         }
 
         private bool IsLevelTradeable(Level level)

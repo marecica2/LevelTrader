@@ -33,13 +33,6 @@ namespace cAlgo
             }
         }
 
-        private double getRiskAmount()
-        {
-            if (Params.FixedRiskAmount > 0)
-                return Params.FixedRiskAmount;
-            return Robot.Account.Balance * Params.PositionSize;
-        }
-
         private void ApplyNegativeProfitStrategy(Position position, LossStrategy strategy)
         {
             int negativeBarsCount = 0;
@@ -67,14 +60,9 @@ namespace cAlgo
             }
         }
 
-        private double LastPrice(TradeType tradeType)
-        {
-            return tradeType == TradeType.Buy ? Robot.Symbol.Bid : Robot.Symbol.Ask;
-        }
-
         private void ApplyProfitStrategy(Position position)
         {
-            if(!modifiedPositions.Contains(position))
+            if (!modifiedPositions.Contains(position))
             {
                 Robot.Print("Moving Stoploss to Zero. Reason: Profit is now over {0}", Params.ProfitThreshold);
                 Robot.ModifyPosition(position, position.EntryPrice, position.TakeProfit);
@@ -105,6 +93,18 @@ namespace cAlgo
                 return Robot.MarketSeries.Open[index] > position.EntryPrice && Robot.MarketSeries.Close[index] > position.EntryPrice;
             }
             return false;
+        }
+
+        private double getRiskAmount()
+        {
+            if (Params.FixedRiskAmount > 0)
+                return Params.FixedRiskAmount;
+            return Robot.Account.Balance * Params.PositionSize;
+        }
+
+        private double LastPrice(TradeType tradeType)
+        {
+            return tradeType == TradeType.Buy ? Robot.Symbol.Bid : Robot.Symbol.Ask;
         }
 
         private int positionStartIndex(Position position)

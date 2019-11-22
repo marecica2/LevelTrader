@@ -1,5 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
+using cAlgo.API.Indicators;
+using cAlgo.Indicators;
 using cAlgo.API;
 using cAlgo.API.Internals;
 
@@ -47,6 +48,12 @@ namespace cAlgo.Robots
         [Parameter("Default Stop Loss [Pips]", DefaultValue = 8, MinValue = 1, Group = "Loss Control")]
         public int DefaultStopLossPips { get; set; }
 
+        [Parameter("Use ATR based SL", DefaultValue = false, Group = "Loss Control")]
+        public bool UseAtrBasedStoppLossPips { get; set; }
+
+        [Parameter("Prevent Spikes", DefaultValue = true, Group = "Loss Control")]
+        public bool PreventSpikes { get; set; }
+
         [Parameter("Number of Candles in Negative Area", DefaultValue = 3, MinValue = 0, Group = "Loss Control")]
         public int CandlesInNegativeArea { get; set; }
 
@@ -77,8 +84,6 @@ namespace cAlgo.Robots
         [Parameter("Backtest Folder", DefaultValue = "C:\\Users\\marec\\Documents\\TRADING_BACKTEST", Group = "Backtest")]
         public string BackTestPath { get; set; }
 
-
-
         private LevelController LevelController;
 
         private Calendar Calendar;
@@ -86,6 +91,8 @@ namespace cAlgo.Robots
         private PositionController PositionController;
 
         private InputParams InputParams;
+
+        private AverageTrueRange atr;
 
         protected override void OnStart()
         {
@@ -108,6 +115,8 @@ namespace cAlgo.Robots
 
                 LossStrategy = (LossStrategy)LossStrategy,
                 StopLossPips = DefaultStopLossPips,
+                UseAtrBasedStoppLossPips = UseAtrBasedStoppLossPips,
+                PreventSpikes = PreventSpikes,
                 CandlesInNegativeArea = CandlesInNegativeArea,
                 NegativeBreakEvenOffset = NegativeBreakEvenOffset * 0.01,
 
@@ -121,6 +130,9 @@ namespace cAlgo.Robots
                 BackTestPath = BackTestPath,
             };
 
+            MarketSeries daily = MarketData.GetSeries(TimeFrame.Daily);
+            atr = Indicators.AverageTrueRange(daily, 70, MovingAverageType.Simple);
+            
             Calendar = new Calendar(this, InputParams);
             Calendar.Init();
             LevelController = new LevelController(this, InputParams, Calendar);
@@ -137,7 +149,8 @@ namespace cAlgo.Robots
         protected override void OnBar()
         {
             Calendar.OnBar();
-            LevelController.OnBar();
+            double atrPips = Math.Round(atr.Result[atr.Result.Count - 1] / Symbol.PipSize) ;
+            LevelController.OnBar(atrPips);
         }
 
         protected override void OnStop()

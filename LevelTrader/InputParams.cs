@@ -50,5 +50,7 @@
         public bool CalendarPause { get; set; }
         public int CalendarEventDuration { get; set; }
         public double FixedRiskAmount { get; internal set; }
+        public bool UseAtrBasedStoppLossPips { get; set; }
+        public bool PreventSpikes { get; set; }
     }
 }
