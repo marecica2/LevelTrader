@@ -144,9 +144,21 @@ namespace cAlgo
             {
                 for (int i = fromIndex; i <= toIndex; i++)
                 {
+                    if (Robot.MarketSeries.Low[i] <= level.ActivatePrice && !level.LevelActivated)
+                    {
+                        Robot.Print("Level {0} marked as activated at {1}", level.Label, Robot.MarketSeries.OpenTime[i]);
+                        level.LevelActivated = true;
+                    }
+                    if (Robot.MarketSeries.Low[i] >= level.DeactivatePrice && level.LevelActivated)
+                    {
+                        level.Traded = true;
+                        Robot.Print("Level {0} marked as cancelled at {1}", level.Label, Robot.MarketSeries.OpenTime[i]);
+                        break;
+                    }
                     if (Robot.MarketSeries.Low[i] <= level.EntryPrice)
                     {
                         level.Traded = true;
+                        Robot.Print("Level {0} marked as traded", level.Label);
                         break;
                     }
                 }
