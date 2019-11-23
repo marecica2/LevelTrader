@@ -34,6 +34,12 @@ namespace cAlgo
             return value.Length <= maxChars ? value : value.Substring(0, maxChars) + "...";
         }
 
+
+        public static string PositionLabel(string symbol, string input, string strategy)
+        {
+            return symbol + "_" + input + "_" + strategy;
+        }
+
         public static string Pad(string value, int maxChars)
         {
             if(value.Length > maxChars)

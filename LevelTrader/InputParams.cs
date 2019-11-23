@@ -12,6 +12,14 @@
         CANDLE_BODY,
     }
 
+    public enum ProfitStrategy
+    {
+        SIMPLE = 0,
+        TRAILING_ENVELOPE_50,
+        TRAILING_PIVOTS_5M,
+        TRAILING_PIVOTS_30M,
+    }
+
     public class InputParams
     {
         // Comon params
@@ -53,5 +61,6 @@
         public double FixedRiskAmount { get; internal set; }
         public bool UseAtrBasedStoppLossPips { get; set; }
         public bool PreventSpikes { get; set; }
+        public ProfitStrategy ProfitStrategy { get; set; }
     }
 }

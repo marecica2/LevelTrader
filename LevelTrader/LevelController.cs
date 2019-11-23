@@ -227,8 +227,10 @@ namespace cAlgo
                     Renderer.RenderLevel(level, Paused);
                     if (!Paused && !IsSpike(level.Direction == Direction.LONG ? TradeType.Sell : TradeType.Buy))
                     {
+                        double risk = Calculator.GetRisk(Params.RiskRewardRatio, Params.FixedRiskAmount);
                         double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, level.StopLossPips, trade);
-                        TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, level.Label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo);
+                        string label = Utils.PositionLabel(Robot.SymbolName, Params.LevelFileName, Params.StrategyType.ToString());
+                        TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo, "profit="+ risk);
                         Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, level.StopLossPips, trade);
                         Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
                     }

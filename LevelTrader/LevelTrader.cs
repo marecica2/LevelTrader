@@ -65,14 +65,17 @@ namespace cAlgo.Robots
 
 
 
-        [Parameter("Risk Reward Ratio [%]", DefaultValue = 1, MinValue = 0, Group = "Profit Control", Step = 1.0)]
+        [Parameter("Risk Reward Ratio [%]", DefaultValue = 1, MinValue = 0.5, Group = "Profit Control", Step = 0.1)]
         public double RiskRewardRatio { get; set; }
 
-        [Parameter("Profit Autoclose threshold [% of PT]", DefaultValue = 60, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 5.0)]
+        [Parameter("Profit Autoclose threshold [% of PT]", DefaultValue = 60, MinValue = 0, MaxValue = 95, Group = "Profit Control", Step = 5.0)]
         public double ProfitThreshold { get; set; }
 
         [Parameter("Profit Volume [% of PT]", DefaultValue = 50, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 5.0)]
         public double ProfitVolume { get; set; }
+
+        [Parameter("Profit Strategy", DefaultValue = 0, Group = "Profit Control")]
+        public ProfitStrategy ProfitStrategy { get; set; }
 
 
 
@@ -95,7 +98,11 @@ namespace cAlgo.Robots
 
         private InputParams InputParams;
 
-        private AverageTrueRange atr;
+        private AverageTrueRange Atr;
+
+        private ExponentialMovingAverage EmaHigh;
+
+        private ExponentialMovingAverage EmaLow;
 
         protected override void OnStart()
         {
@@ -129,6 +136,7 @@ namespace cAlgo.Robots
                 RiskRewardRatio = RiskRewardRatio * 0.01,
                 ProfitThreshold = ProfitThreshold * 0.01,
                 ProfitVolume = ProfitVolume * 0.01,
+                ProfitStrategy = ProfitStrategy,
 
                 CalendarPause = CalendarPause,
                 CalendarEventDuration = CalendarBeforeOffset,
@@ -137,13 +145,15 @@ namespace cAlgo.Robots
             };
 
             MarketSeries daily = MarketData.GetSeries(TimeFrame.Daily);
-            atr = Indicators.AverageTrueRange(daily, 70, MovingAverageType.Simple);
+            Atr = Indicators.AverageTrueRange(daily, 70, MovingAverageType.Simple);
+            EmaHigh = Indicators.ExponentialMovingAverage(MarketSeries.High, 50);
+            EmaLow = Indicators.ExponentialMovingAverage(MarketSeries.Low, 50);
             
             Calendar = new Calendar(this, InputParams);
             Calendar.Init();
             LevelController = new LevelController(this, InputParams, Calendar);
             LevelController.Init();
-            PositionController = new PositionController(this, InputParams);
+            PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow);
         }
 
         protected override void OnTick()
@@ -152,10 +162,15 @@ namespace cAlgo.Robots
             PositionController.OnTick();
         }
 
+        protected override void OnBar()
+        {
+            PositionController.OnBar();
+        }
+
         protected override void OnTimer()
         {
             Calendar.OnMinute();
-            double atrPips = Math.Round(atr.Result[atr.Result.Count - 1] / Symbol.PipSize);
+            double atrPips = Math.Round(Atr.Result[Atr.Result.Count - 1] / Symbol.PipSize);
             LevelController.OnMinute(atrPips);
         }
 
