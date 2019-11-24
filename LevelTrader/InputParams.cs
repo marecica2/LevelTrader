@@ -62,5 +62,6 @@
         public bool UseAtrBasedStoppLossPips { get; set; }
         public bool PreventSpikes { get; set; }
         public ProfitStrategy ProfitStrategy { get; set; }
+        public string Email { get; set; }
     }
 }

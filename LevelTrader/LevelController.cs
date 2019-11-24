@@ -39,7 +39,7 @@ namespace cAlgo
             Calculator = new RiskCalculator(Robot);
         }
 
-        public void Init()
+        public void Init(double dailyAtr)
         {
             XDocument xml = LoadXml();
             if(xml != null)
@@ -49,8 +49,11 @@ namespace cAlgo
                 Initialize(Levels);
                 AnalyzeHistory(Levels);
                 Renderer.Render(Levels);
+                SendEmailNotification(dailyAtr);
             }
         }
+
+
 
         private XDocument LoadXml()
         {
@@ -81,8 +84,9 @@ namespace cAlgo
             DateTime time = Robot.Server.TimeInUtc;
             if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute)
             {
-                Init();
+                Init(dailyAtr);
                 Robot.Print("Auto-reload on scheduled time {0} UTC executed successfully", time);
+                Robot.Notifications.SendEmail("marecica33@hotmail.com", "marek.balla@gmail.com", "Levels initialized", "test");
             }
 
             if (Params.CalendarPause)
@@ -268,10 +272,8 @@ namespace cAlgo
                 barsPercentage = 1.5;
             }
 
-
             double lastBarVolatility = GetVolatilityPips(direction);
             double lastBarsVolatility = GetVolatilityPips(direction, barsCount);
-            Robot.Print("aaaaa " + DailyAtr + " " + lastBarVolatility + " " + lastBarsVolatility);
             bool isSpike = lastBarsVolatility >= DailyAtr * barsPercentage || lastBarVolatility > DailyAtr * barPercentage;
             if (isSpike)
                 Robot.Print("Spike detected. Volatility on last bar: {0} pips Volatility on last {1} bars: {2} pips. Avg Daily Atr was {3}", lastBarVolatility, barsCount, lastBarsVolatility, DailyAtr);
@@ -318,6 +320,32 @@ namespace cAlgo
                     Robot.Print("Order for level {0} cancelled. Reason: {1}", level.Label, reason);
                     Robot.CancelPendingOrder(order);
                 }
+            }
+        }
+
+        private void SendEmailNotification(double dailyAtr)
+        {
+            if (Robot.RunningMode == RunningMode.RealTime && Params.Email != null)
+            {
+                string body = "";
+                body += "Levels initialized for Day " + Robot.Server.TimeInUtc + " UTC \r\n";
+                body += "\r\n";
+                body += "Level offset " + Params.LevelOffset + " ticks \r\n";
+                body += "Level based on daily Atr " + dailyAtr + " pips \r\n";
+                body += "Level offset " + Params.LevelOffset + " ticks \r\n";
+                body += "\r\n";
+                foreach (Level l in Levels)
+                    body += l.ToString() + "\r\n";
+                body += "\r\n";
+                body += "Calendar events: \r\n";
+                foreach(CalendarEntry c in Calendar.UpcomingEvents(Robot.SymbolName, Robot.Server.TimeInUtc))
+                    body += c.ToString() + "\r\n";
+                body += "\r\n";
+                body += "Check Levels on Forex expert plus https://www.forex-zone.cz/forex-expert-plus/klientska-sekce \r\n";
+                body += "Check Forex calendar https://www.forexfactory.com/calendar.php \r\n";
+                body += "\r\n";
+                body += "Notification sent by LevelTrader on " + Robot.Server.TimeInUtc + " UTC";
+                Robot.Notifications.SendEmail("larecica2@gmail.com", Params.Email,"LevelTrader initialized " + Robot.SymbolName + " " + Params.StrategyType, body);
             }
         }
     }

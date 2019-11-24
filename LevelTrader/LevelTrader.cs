@@ -18,11 +18,14 @@ namespace cAlgo.Robots
         [Parameter("File Name", DefaultValue = "FE_NT8.xml", Group = "Input")]
         public string FileName { get; set; }
 
+
         [Parameter("Time Zone Offset to UTC [Hrs]", DefaultValue = -1, MinValue = -12, MaxValue = 12, Group = "Input")]
         public int TimeZoneOffset { get; set; }
 
         [Parameter("Daily Update Time [UTC]" ,DefaultValue = "07:35", Group = "Input")]
         public string DailyReloadTime { get; set; }
+
+
 
 
 
@@ -90,6 +93,9 @@ namespace cAlgo.Robots
         [Parameter("Backtest Folder", DefaultValue = "C:\\Users\\marec\\Documents\\TRADING_BACKTEST", Group = "Backtest")]
         public string BackTestPath { get; set; }
 
+        [Parameter("Email", Group = "Notification")]
+        public string Email { get; set; }
+
         private LevelController LevelController;
 
         private Calendar Calendar;
@@ -142,6 +148,7 @@ namespace cAlgo.Robots
                 CalendarEventDuration = CalendarBeforeOffset,
 
                 BackTestPath = BackTestPath,
+                Email = Email,
             };
 
             MarketSeries daily = MarketData.GetSeries(TimeFrame.Daily);
@@ -152,7 +159,8 @@ namespace cAlgo.Robots
             Calendar = new Calendar(this, InputParams);
             Calendar.Init();
             LevelController = new LevelController(this, InputParams, Calendar);
-            LevelController.Init();
+            double atrPips = Math.Round(Atr.Result[Atr.Result.Count - 1] / Symbol.PipSize);
+            LevelController.Init(atrPips);
             PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow);
         }
 

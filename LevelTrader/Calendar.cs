@@ -210,7 +210,7 @@ namespace cAlgo
 
         override public string ToString()
         {
-            return Country + " " + Comment + " " + EventImpact + " " + EventTime;
+            return Country + " " + EventImpact + " " + EventTime + " " + Comment;
         }
     }
 

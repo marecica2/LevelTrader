@@ -122,34 +122,40 @@ namespace cAlgo
                 if (position.TradeType == TradeType.Buy)
                 {
                     EmaLow.Calculate(lastBar);
-                    double emaHigh = EmaLow.Result[lastBar];
-                    if ((lastPrice - emaHigh) / Robot.Symbol.PipSize > 3 && !trailedPositions.Contains(position))
+                    EmaHigh.Calculate(lastBar);
+                    double emaLow = EmaLow.Result[lastBar];
+                    double emaHigh = EmaHigh.Result[lastBar];
+                    if ((lastPrice - emaHigh) / Robot.Symbol.PipSize > 5 && !trailedPositions.Contains(position))
                     {
-                        position.ModifyStopLossPrice(emaHigh);
+                        position.ModifyStopLossPrice(emaLow);
                         trailedPositions.Add(position);
                     }
-                    if (positiveBePositions.Contains(position))
-                        position.ModifyStopLossPrice(emaHigh);
+                    if (trailedPositions.Contains(position))
+                        position.ModifyStopLossPrice(emaLow);
                 }
                 if (position.TradeType == TradeType.Sell)
                 {
                     EmaLow.Calculate(lastBar);
-                    double emaLow = EmaHigh.Result[lastBar];
-                    if ((emaLow - lastPrice) / Robot.Symbol.PipSize > 3 && !trailedPositions.Contains(position))
+                    EmaHigh.Calculate(lastBar);
+                    double emaLow = EmaLow.Result[lastBar];
+                    double emaHigh = EmaHigh.Result[lastBar];
+                    if ((emaLow - lastPrice) / Robot.Symbol.PipSize > 5 && !trailedPositions.Contains(position))
                     {
-                        position.ModifyStopLossPrice(emaLow);
+                        Robot.Print("AAAA Trailing ", (emaLow - lastPrice) / Robot.Symbol.PipSize);
+                        position.ModifyStopLossPrice(emaHigh);
                         trailedPositions.Add(position);
                     }
-                    if (positiveBePositions.Contains(position))
-                        position.ModifyStopLossPrice(emaLow);
+                    if (trailedPositions.Contains(position))
+                        position.ModifyStopLossPrice(emaHigh);
                 }
             }
         }
 
         private void SetBreakEven(Position position)
         {
-            Robot.Print("Moving Stoploss to Zero. Reason: Profit is now over {0}% threshold", Params.ProfitThreshold);
-            Robot.ModifyPosition(position, position.EntryPrice, position.TakeProfit);
+            Robot.Print("Moving Stoploss to Positive Break even. Reason: Profit is now over {0}% threshold", Params.ProfitThreshold * 100);
+            double breakEvenPrice = position.EntryPrice + 1 * Robot.Symbol.PipSize * (position.TradeType == TradeType.Buy ? 1 : -1);
+            Robot.ModifyPosition(position, breakEvenPrice, position.TakeProfit);
             if (Params.ProfitVolume > 0)
             {
                 Robot.Print("Partial profit taken for {0}% of original volume of {1} units", Params.ProfitVolume, position.VolumeInUnits);
