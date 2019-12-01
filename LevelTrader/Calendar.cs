@@ -17,7 +17,7 @@ namespace cAlgo
         private static string URL = "http://cdn-nfs.faireconomy.media/ff_calendar_thisweek.xml";
         private Robot Robot { get; set; }
         private InputParams Params { get; set; }
-        private List<CalendarEntry> Entries;
+        private List<CalendarEntry> Entries = new List<CalendarEntry>();
         private DateTime? PausedUntil;
         private bool Paused = false;
 
@@ -30,21 +30,30 @@ namespace cAlgo
         public void Init()
         {
             XDocument xml = LoadXml();
-            Entries = Parse(xml);
-
-            foreach (CalendarEntry entry in Entries)
+            if(xml != null)
             {
-                entry.EventTimeBefore = entry.EventTime.AddMinutes(-Params.CalendarEventDuration);
-                entry.EventTimeAfter = entry.EventTime.AddMinutes(Params.CalendarEventDuration);
+                Entries = Parse(xml);
+                foreach (CalendarEntry entry in Entries)
+                {
+                    entry.EventTimeBefore = entry.EventTime.AddMinutes(-Params.CalendarEventDuration);
+                    entry.EventTimeAfter = entry.EventTime.AddMinutes(Params.CalendarEventDuration);
+                }
+                RefreshCalendar();
+            } else
+            {
+                Entries = new List<CalendarEntry>();
             }
-            RefreshCalendar();
         }
 
         public void OnMinute()
         {
             DateTime time = Robot.Server.TimeInUtc;
-            if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute)
+            if (0 == time.Hour && 5 == time.Minute)
+            {
+                Robot.Print("Calendar refreshed automatically");
+                logger.Info("Calendar refreshed automatically");
                 Init();
+            }
             RefreshCalendar();
         }
 
@@ -54,7 +63,7 @@ namespace cAlgo
             string text = "";
             foreach (var evt in events)
             {
-                if(evt.EventImpact >= Impact.MEDIUM)
+                // if(evt.EventImpact >= Impact.MEDIUM)
                     text += evt.Country + " " + evt.EventImpact + " " + evt.EventTime + " " + Utils.Truncate(evt.Comment, 30) + "\r\n";
             }
             Robot.Chart.DrawStaticText("calendar", text, VerticalAlignment.Bottom, HorizontalAlignment.Left, Color.Gray);
@@ -145,9 +154,17 @@ namespace cAlgo
             string filePath = Params.LevelFilePath;
             DateTime time = Robot.Server.TimeInUtc;
             int week = Utils.GetWeekOfYear(time);
+            if(time.DayOfWeek == DayOfWeek.Sunday)
+                week += 1;
             if (Robot.RunningMode != RunningMode.RealTime)
             {
                 filePath = Params.BackTestPath + "\\calendar-" + time.Year + "-" + week + ".xml";
+                if (!File.Exists(filePath))
+                {
+                    Robot.Print("Calendar on path {0} does not exist", filePath);
+                    logger.Info(String.Format("Calendar on path {0} does not exist", filePath));
+                    return null;
+                }
                 logger.Info(String.Format("Calendar file {0} initialized", filePath));
                 Robot.Print("Calendar file {0} initialized", filePath);
                 return XDocument.Load(filePath);

@@ -46,9 +46,9 @@ namespace cAlgo
         {
             DailyAtr = dailyAtr;
             XDocument xml = LoadXml();
+            Levels = new List<Level>();
             if(xml != null)
             {
-                Levels = new List<Level>();
                 Levels = new LevelParser().Parse(xml, Params, Robot.Server.Time);
                 Initialize(Levels);
                 AnalyzeHistory(Levels);
