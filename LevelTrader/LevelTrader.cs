@@ -204,6 +204,8 @@ namespace cAlgo.Robots
             var config = new LoggingConfiguration();
             var fileTarget = new FileTarget("target2")
             {
+                ArchiveNumbering = ArchiveNumberingMode.DateAndSequence,
+                ArchiveAboveSize = 10485760,
                 FileName = BackTestPath + "/logs/" + this.SymbolName + "_" + this.FileName + (this.RunningMode == RunningMode.RealTime? "" : "_backtest") + ".txt",
                 Layout = "${longdate} ${callsite:className=True:fileName=False:includeSourcePath=False:methodName=False} ${level} ${message} ${exception:format=ToString,StackTrace} ${stacktrace:format=DetailedFlat:topFrames=5:skipFrames=5:separator=&#13;&#10;}"
             };
