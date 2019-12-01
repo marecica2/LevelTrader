@@ -234,7 +234,8 @@ namespace cAlgo
                         double risk = Calculator.GetRisk(Params.RiskRewardRatio, Params.FixedRiskAmount);
                         double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, level.StopLossPips, trade);
                         string label = Utils.PositionLabel(Robot.SymbolName, Params.LevelFileName, Params.StrategyType.ToString());
-                        TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo, "profit="+ risk);
+                        string comment = "profit=" + risk + "&level=" + level.Label;
+                        TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo, comment);
                         Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, level.StopLossPips, trade);
                         Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
                     }
@@ -315,7 +316,9 @@ namespace cAlgo
         {
             foreach (var order in Robot.PendingOrders)
             {
-                if (order.Label == level.Label)
+                string label = Utils.PositionLabel(Robot.SymbolName, Params.LevelFileName, Params.StrategyType.ToString());
+                Dictionary<String, String> attributes = Utils.ParseComment(order.Comment);
+                if (order.Label == label && attributes["level"] == level.Label)
                 {
                     Robot.Print("Order for level {0} cancelled. Reason: {1}", level.Label, reason);
                     Robot.CancelPendingOrder(order);

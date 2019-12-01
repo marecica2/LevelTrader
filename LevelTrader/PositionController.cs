@@ -31,7 +31,7 @@ namespace cAlgo
         {
             foreach (Position position in getPositions())
             {
-                Dictionary<String, String> attributes = ParseComment(position.Comment);
+                Dictionary<String, String> attributes = Utils.ParseComment(position.Comment);
                 if (position.GrossProfit < 0 && !negativeBePositions.Contains(position))
                 {
                    ApplyNegativeProfitStrategy(position, Params.LossStrategy);
@@ -47,7 +47,7 @@ namespace cAlgo
         {
             foreach (Position position in getPositions())
             {
-                Dictionary<String, String> attributes = ParseComment(position.Comment);
+                Dictionary<String, String> attributes = Utils.ParseComment(position.Comment);
                 if (position.GrossProfit >= getProfitAmount(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0)
                 {
                     ApplyProfitStrategy(position, true);
@@ -201,18 +201,6 @@ namespace cAlgo
         private int lastBarIndex()
         {
             return Robot.MarketSeries.High.Count;
-        }
-
-        private Dictionary<String, String> ParseComment(String str)
-        {
-            Dictionary<String, String> map = new Dictionary<string, string>();
-            String[] entries = str.Split('&');
-            foreach(String entry in entries)
-            {
-                String[] kv = entry.Split('=');
-                map.Add(kv[0], kv[1]);
-            }
-            return map;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace cAlgo
@@ -47,6 +48,18 @@ namespace cAlgo
                 value = Truncate(value, maxChars - 3);
             }
             return value.PadRight(maxChars, ' ');
+        }
+
+        public static Dictionary<String, String> ParseComment(String str)
+        {
+            Dictionary<String, String> map = new Dictionary<string, string>();
+            String[] entries = str.Split('&');
+            foreach (String entry in entries)
+            {
+                String[] kv = entry.Split('=');
+                map.Add(kv[0], kv[1]);
+            }
+            return map;
         }
     }
 }
