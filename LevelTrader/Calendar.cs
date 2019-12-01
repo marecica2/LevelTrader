@@ -6,11 +6,13 @@ using System.Linq;
 using System.Net;
 using System.Xml.Linq;
 using cAlgo.API;
+using NLog;
 
 namespace cAlgo
 {
     public class Calendar
     {
+        private static Logger logger = LogManager.GetCurrentClassLogger();
         private static WebClient client = new WebClient();
         private static string URL = "http://cdn-nfs.faireconomy.media/ff_calendar_thisweek.xml";
         private Robot Robot { get; set; }
@@ -61,11 +63,17 @@ namespace cAlgo
         public bool IsPaused()
         {
             DateTime time = Robot.Server.TimeInUtc;
+
+            if(time.DayOfWeek == DayOfWeek.Friday && (time.Hour > 20 && time.Minute > 0 ) && ( time.Hour < 23 && time.Minute < 59))
+            {
+                return true;
+            }
+
             DateTime ?pausedUntil = GetEventsInAdvance(Robot.Symbol.Name);
             if (pausedUntil != null)
             {
                 PausedUntil = pausedUntil;
-                //Robot.Print("Impact events until {0}", PausedUntil.Value);
+                logger.Debug(String.Format("Impact events until {0}", PausedUntil.Value));
                 return true;
             }
 
@@ -75,8 +83,8 @@ namespace cAlgo
             }
 
             if (PausedUntil != null && time > PausedUntil)
-            {           
-                //Robot.Print("Impact Events finished");
+            {
+                logger.Debug(String.Format("Impact Events finished"));
                 PausedUntil = null;
                 return false;
             }
@@ -140,11 +148,13 @@ namespace cAlgo
             if (Robot.RunningMode != RunningMode.RealTime)
             {
                 filePath = Params.BackTestPath + "\\calendar-" + time.Year + "-" + week + ".xml";
+                logger.Info(String.Format("Calendar file {0} initialized", filePath));
                 Robot.Print("Calendar file {0} initialized", filePath);
                 return XDocument.Load(filePath);
             } else
             {
                 string xml = Fetch();
+                logger.Info(String.Format("Calendar for year {0} week {1} initialized", time.Year, week));
                 Robot.Print("Calendar for year {0} week {1} initialized", time.Year, week);
                 return XDocument.Parse(xml);
             }

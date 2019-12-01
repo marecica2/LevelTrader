@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using cAlgo.API;
 using cAlgo.API.Indicators;
+using NLog;
 
 namespace cAlgo
 {
     class PositionController
     {
+        private static Logger logger = LogManager.GetCurrentClassLogger();
+
         public Robot Robot { get; set; }
 
         public InputParams Params { get; set; }
@@ -82,6 +85,7 @@ namespace cAlgo
 
                 if (negativeBarsCount == Params.CandlesInNegativeArea)
                 {
+                    logger.Info(String.Format("Moving Profit to Breakeven as {0}% of original Stop Loss. Reason: {1} candle(s) in negative area", Params.NegativeBreakEvenOffset, negativeBarsCount));
                     Robot.Print("Moving Profit to Breakeven as {0}% of original Stop Loss. Reason: {1} candle(s) in negative area", Params.NegativeBreakEvenOffset, negativeBarsCount);
                     double newPrice = position.EntryPrice - negativeBreakOffset(position);
                     TradeResult result = Robot.ModifyPosition(position, position.StopLoss, newPrice);
@@ -141,7 +145,6 @@ namespace cAlgo
                     double emaHigh = EmaHigh.Result[lastBar];
                     if ((emaLow - lastPrice) / Robot.Symbol.PipSize > 5 && !trailedPositions.Contains(position))
                     {
-                        Robot.Print("AAAA Trailing ", (emaLow - lastPrice) / Robot.Symbol.PipSize);
                         position.ModifyStopLossPrice(emaHigh);
                         trailedPositions.Add(position);
                     }
@@ -153,11 +156,13 @@ namespace cAlgo
 
         private void SetBreakEven(Position position)
         {
+            logger.Info(String.Format("Moving Stoploss to Positive Break even. Reason: Profit is now over {0}% threshold", Params.ProfitThreshold * 100));
             Robot.Print("Moving Stoploss to Positive Break even. Reason: Profit is now over {0}% threshold", Params.ProfitThreshold * 100);
             double breakEvenPrice = position.EntryPrice + 1 * Robot.Symbol.PipSize * (position.TradeType == TradeType.Buy ? 1 : -1);
             Robot.ModifyPosition(position, breakEvenPrice, position.TakeProfit);
             if (Params.ProfitVolume > 0)
             {
+                logger.Info(String.Format("Partial profit taken for {0}% of original volume of {1} units", Params.ProfitVolume, position.VolumeInUnits));
                 Robot.Print("Partial profit taken for {0}% of original volume of {1} units", Params.ProfitVolume, position.VolumeInUnits);
                 Robot.ModifyPosition(position, Robot.Symbol.NormalizeVolumeInUnits(position.VolumeInUnits * Params.ProfitVolume));
             }

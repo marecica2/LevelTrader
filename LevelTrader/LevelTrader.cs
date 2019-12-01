@@ -4,6 +4,10 @@ using cAlgo.Indicators;
 using cAlgo.API;
 using cAlgo.API.Internals;
 
+using NLog;
+using NLog.Targets;
+using NLog.Config;
+
 namespace cAlgo.Robots
 {
     [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.FullAccess)]
@@ -22,16 +26,16 @@ namespace cAlgo.Robots
         [Parameter("Time Zone Offset to UTC [Hrs]", DefaultValue = -1, MinValue = -12, MaxValue = 12, Group = "Input")]
         public int TimeZoneOffset { get; set; }
 
-        [Parameter("Daily Update Time [UTC]" ,DefaultValue = "07:35", Group = "Input")]
+        [Parameter("Daily Update Time [UTC]", DefaultValue = "07:35", Group = "Input")]
         public string DailyReloadTime { get; set; }
 
 
 
 
 
-        [Parameter("Position Size [%]" ,DefaultValue = 1, MinValue = 0.01, MaxValue = 10, Group = "Risk Management", Step = 0.5)]
+        [Parameter("Position Size [%]", DefaultValue = 1, MinValue = 0.01, MaxValue = 10, Group = "Risk Management", Step = 0.5)]
         public double PositionSizePercents { get; set; }
-                
+
         [Parameter("Fixed Risk [Currency]", DefaultValue = 0, MinValue = 0, Group = "Risk Management", Step = 50.0)]
         public double FixedRisk { get; set; }
 
@@ -112,17 +116,24 @@ namespace cAlgo.Robots
 
         protected override void OnStart()
         {
+            InitLogger();
             Timer.Start(60);
 
-            InputParams = new InputParams
+            InputParams = new InputParams 
             {
                 StrategyType = StrategyType,
                 Instrument = Symbol.Name,
                 LastPrice = Symbol.Bid,
                 LevelFilePath = FilePath,
                 LevelFileName = FileName,
-                DailyReloadHour = int.Parse(DailyReloadTime.Split(new string[] { ":" }, StringSplitOptions.None)[0]),
-                DailyReloadMinute = int.Parse(DailyReloadTime.Split(new string[] { ":" }, StringSplitOptions.None)[1]),
+                DailyReloadHour = int.Parse(DailyReloadTime.Split(new string[] 
+                {
+                    ":"
+                }, StringSplitOptions.None)[0]),
+                DailyReloadMinute = int.Parse(DailyReloadTime.Split(new string[] 
+                {
+                    ":"
+                }, StringSplitOptions.None)[1]),
                 TimeZoneOffset = TimeZoneOffset,
 
                 PositionSize = PositionSizePercents * 0.01,
@@ -148,18 +159,19 @@ namespace cAlgo.Robots
                 CalendarEventDuration = CalendarBeforeOffset,
 
                 BackTestPath = BackTestPath,
-                Email = Email,
+                Email = Email
             };
 
             MarketSeries daily = MarketData.GetSeries(TimeFrame.Daily);
-            Atr = Indicators.AverageTrueRange(daily, 70, MovingAverageType.Simple);
+            Atr = Indicators.AverageTrueRange(daily, 200, MovingAverageType.Exponential);
             EmaHigh = Indicators.ExponentialMovingAverage(MarketSeries.High, 50);
             EmaLow = Indicators.ExponentialMovingAverage(MarketSeries.Low, 50);
-            
+
             Calendar = new Calendar(this, InputParams);
             Calendar.Init();
             LevelController = new LevelController(this, InputParams, Calendar);
             double atrPips = Math.Round(Atr.Result[Atr.Result.Count - 1] / Symbol.PipSize);
+
             LevelController.Init(atrPips);
             PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow);
         }
@@ -184,9 +196,24 @@ namespace cAlgo.Robots
 
         protected override void OnStop()
         {
-            
+
         }
 
-        
+        protected void InitLogger()
+        {
+            var config = new LoggingConfiguration();
+            var fileTarget = new FileTarget("target2")
+            {
+                FileName = BackTestPath + "/logs/" + this.SymbolName + "_" + this.FileName + (this.RunningMode == RunningMode.RealTime? "" : "_backtest") + ".txt",
+                Layout = "${longdate} ${callsite:className=True:fileName=False:includeSourcePath=False:methodName=False} ${level} ${message} ${exception:format=ToString,StackTrace} ${stacktrace:format=DetailedFlat:topFrames=5:skipFrames=5:separator=&#13;&#10;}"
+            };
+            config.AddTarget(fileTarget);
+            config.AddRuleForOneLevel(LogLevel.Debug, fileTarget);
+            config.AddRuleForOneLevel(LogLevel.Info, fileTarget);
+            config.AddRuleForOneLevel(LogLevel.Warn, fileTarget);
+            config.AddRuleForOneLevel(LogLevel.Error, fileTarget);
+            LogManager.Configuration = config;
+        }
+
     }
 }
