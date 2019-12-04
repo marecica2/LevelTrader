@@ -28,7 +28,7 @@
 
         // Input params
         public StrategyType StrategyType { get; set; }
-        public int TimeZoneOffset { get; set; }
+        public double TimeZoneOffset { get; set; }
         public string LevelFilePath { get; set; }
         public string LevelFileName { get; set; }
         public int DailyReloadHour { get; set; }

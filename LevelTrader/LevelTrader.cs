@@ -24,9 +24,9 @@ namespace cAlgo.Robots
 
 
         [Parameter("Time Zone Offset to UTC [Hrs]", DefaultValue = -1, MinValue = -12, MaxValue = 12, Group = "Input")]
-        public int TimeZoneOffset { get; set; }
+        public double TimeZoneOffset { get; set; }
 
-        [Parameter("Daily Update Time [UTC]", DefaultValue = "07:35", Group = "Input")]
+        [Parameter("Daily Update Time [UTC]", DefaultValue = "07:00", Group = "Input")]
         public string DailyReloadTime { get; set; }
 
 
@@ -55,7 +55,7 @@ namespace cAlgo.Robots
         [Parameter("Loss Strategy", DefaultValue = 0, MinValue = 0, MaxValue = 1, Group = "Loss Control")]
         public LossStrategy LossStrategy { get; set; }
 
-        [Parameter("Default Stop Loss [Pips]", DefaultValue = 8, MinValue = 1, Group = "Loss Control")]
+        [Parameter("Default Stop Loss [Pips]", DefaultValue = 8, MinValue = 6, Group = "Loss Control")]
         public int DefaultStopLossPips { get; set; }
 
         [Parameter("Use ATR based SL", DefaultValue = false, Group = "Loss Control")]
@@ -67,7 +67,7 @@ namespace cAlgo.Robots
         [Parameter("Number of Candles in Negative Area", DefaultValue = 3, MinValue = 0, Group = "Loss Control")]
         public int CandlesInNegativeArea { get; set; }
 
-        [Parameter("Negative BE Offset [% of SL]", DefaultValue = 5, MinValue = -100, MaxValue = 100, Group = "Loss Control", Step = 1.0)]
+        [Parameter("Negative BE Offset [% of SL]", DefaultValue = 10, MinValue = -100, MaxValue = 100, Group = "Loss Control", Step = 1.0)]
         public double NegativeBreakEvenOffset { get; set; }
 
 
@@ -163,7 +163,7 @@ namespace cAlgo.Robots
             };
 
             MarketSeries daily = MarketData.GetSeries(TimeFrame.Daily);
-            Atr = Indicators.AverageTrueRange(daily, 200, MovingAverageType.Exponential);
+            Atr = Indicators.AverageTrueRange(daily, 70, MovingAverageType.Simple);
             EmaHigh = Indicators.ExponentialMovingAverage(MarketSeries.High, 50);
             EmaLow = Indicators.ExponentialMovingAverage(MarketSeries.Low, 50);
 
@@ -172,7 +172,12 @@ namespace cAlgo.Robots
             LevelController = new LevelController(this, InputParams, Calendar);
             double atrPips = Math.Round(Atr.Result[Atr.Result.Count - 1] / Symbol.PipSize);
 
-            LevelController.Init(atrPips);
+            if (RunningMode != RunningMode.RealTime)
+                LevelController.Init(atrPips, Server.TimeInUtc.AddDays(-1));
+            else
+                LevelController.Init(atrPips);
+            
+            
             PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow);
         }
 

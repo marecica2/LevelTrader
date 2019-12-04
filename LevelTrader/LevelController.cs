@@ -11,7 +11,7 @@ namespace cAlgo
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
 
-        private static int MIN_STOP_LOSS_PIPS = 5;
+        private static int MIN_STOP_LOSS_PIPS = 7;
 
         private static double SL_DAILY_ATR_PERCENTAGE = 0.11;
 
@@ -42,10 +42,10 @@ namespace cAlgo
             Calculator = new RiskCalculator(Robot);
         }
 
-        public void Init(double dailyAtr)
+        public void Init(double dailyAtr, params DateTime[] date)
         {
             DailyAtr = dailyAtr;
-            XDocument xml = LoadXml();
+            XDocument xml = LoadXml(date);
             Levels = new List<Level>();
             if(xml != null)
             {
@@ -59,12 +59,14 @@ namespace cAlgo
 
 
 
-        private XDocument LoadXml()
+        private XDocument LoadXml(params DateTime[] date)
         {
             string filePath = Params.LevelFilePath;
             if (Robot.RunningMode != RunningMode.RealTime)
             {
-                DateTime time = Robot.Server.TimeInUtc;
+                DateTime time = date.Length > 0 ? date[0] : Robot.Server.TimeInUtc;
+                if(time.DayOfWeek == DayOfWeek.Sunday)
+                    time = time.AddDays(-2);
                 int week = Utils.GetWeekOfYear(time);
                 filePath = Params.BackTestPath + "\\" + time.Year + "-" + time.Month + "-" + time.Day + " (" + week + ")\\";
             }
@@ -113,7 +115,7 @@ namespace cAlgo
         private void Initialize(List<Level> levels)
         {
             int idx = 0;
-            int atrBasedPips = Params.UseAtrBasedStoppLossPips == true ? (int)Math.Round(Math.Max(DailyAtr * SL_DAILY_ATR_PERCENTAGE, MIN_STOP_LOSS_PIPS)) : Params.DefaultStopLossPips;
+            int atrBasedPips = Params.UseAtrBasedStoppLossPips == true ? (int)Math.Round(Math.Max(DailyAtr * SL_DAILY_ATR_PERCENTAGE, Params.DefaultStopLossPips)) : Params.DefaultStopLossPips;
             if(Params.UseAtrBasedStoppLossPips == true)
             {
                 logger.Info(String.Format("Using ATR based Stop Loss: Avg. Daily Atr (Pips): {0} * {1} percentage = {2} Pips", DailyAtr, SL_DAILY_ATR_PERCENTAGE, atrBasedPips));
