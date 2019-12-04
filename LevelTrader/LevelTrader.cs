@@ -29,7 +29,8 @@ namespace cAlgo.Robots
         [Parameter("Daily Update Time [UTC]", DefaultValue = "07:00", Group = "Input")]
         public string DailyReloadTime { get; set; }
 
-
+        [Parameter("Level ID", Group = "Input")]
+        public string LevelId { get; set; }
 
 
 
@@ -135,6 +136,7 @@ namespace cAlgo.Robots
                     ":"
                 }, StringSplitOptions.None)[1]),
                 TimeZoneOffset = TimeZoneOffset,
+                LevelId = LevelId,
 
                 PositionSize = PositionSizePercents * 0.01,
                 FixedRiskAmount = FixedRisk,

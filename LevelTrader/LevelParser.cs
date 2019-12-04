@@ -24,9 +24,10 @@ namespace cAlgo
                 defaultValidTo = defaultValidFrom.AddDays(14).AddMinutes(-1);
             }
 
+            string instrument = parameters.LevelId != null ? parameters.LevelId : parameters.Instrument;
             return (
                 from c in xml.Root.Descendants("Level")
-                where (string)c.Attribute("Instrument") == parameters.Instrument
+                where (string)c.Attribute("Instrument") == instrument
                 select new Level
                 {
                     Symbol = (string)c.Attribute("Instrument"),

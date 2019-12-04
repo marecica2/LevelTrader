@@ -102,6 +102,7 @@ namespace cAlgo
 
         public List<CalendarEntry> UpcomingEvents(string symbol, DateTime time)
         {
+            symbol = MapSymbolToCountry(symbol);
             int maxEvents = 7;
             int count = 0;
             List<CalendarEntry> events = new List<CalendarEntry>();
@@ -118,6 +119,7 @@ namespace cAlgo
 
         private DateTime? GetEventsInAdvance(string symbol)
         {
+            symbol = MapSymbolToCountry(symbol);
             DateTime time = Robot.Server.Time;
             CalendarEntry last = null;
             List<CalendarEntry> group = new List<CalendarEntry>();
@@ -147,6 +149,13 @@ namespace cAlgo
                 return group[0].EventTime.AddMinutes(Params.CalendarEventDuration * group.Count);
             }
             return null;
+        }
+
+        private string MapSymbolToCountry(string symbol)
+        {
+            if (symbol == "US30")
+                return "USD";
+            return symbol;
         }
 
         private XDocument LoadXml()

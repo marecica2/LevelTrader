@@ -33,6 +33,7 @@
         public string LevelFileName { get; set; }
         public int DailyReloadHour { get; set; }
         public int DailyReloadMinute { get; set; }
+        public string LevelId { get; set; }
 
         // Risk Management
         public double PositionSize { get; set; }
@@ -63,5 +64,6 @@
         public bool PreventSpikes { get; set; }
         public ProfitStrategy ProfitStrategy { get; set; }
         public string Email { get; set; }
+        
     }
 }
