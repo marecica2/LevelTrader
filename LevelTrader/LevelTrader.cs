@@ -90,7 +90,7 @@ namespace cAlgo.Robots
         [Parameter("Pause Trading on Calendar Events", DefaultValue = true, Group = "Event Calendar")]
         public bool CalendarPause { get; set; }
 
-        [Parameter("Offset Before Event [min]", DefaultValue = 20, MinValue = 0, MaxValue = 60, Group = "Event Calendar")]
+        [Parameter("Offset Before Event [min]", DefaultValue = 20, MinValue = 0, MaxValue = 9999, Group = "Event Calendar")]
         public int CalendarBeforeOffset { get; set; }
 
 
@@ -173,7 +173,6 @@ namespace cAlgo.Robots
             Calendar.Init();
             LevelController = new LevelController(this, InputParams, Calendar);
             double atrPips = Math.Round(Atr.Result[Atr.Result.Count - 1] / Symbol.PipSize);
-
             if (RunningMode != RunningMode.RealTime)
                 LevelController.Init(atrPips, Server.TimeInUtc.AddDays(-1));
             else
@@ -181,6 +180,7 @@ namespace cAlgo.Robots
             
             
             PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow);
+            Print("LevelTrader version 1.0 started");
         }
 
         protected override void OnTick()

@@ -111,7 +111,7 @@ namespace cAlgo
                 positiveBePositions.Add(position);
             }
 
-            if (Params.ProfitStrategy == ProfitStrategy.TRAILING_ENVELOPE_50 && onBar)
+            if (Params.ProfitStrategy == ProfitStrategy.TRAILING_ENVELOPE_50)
             {
                 int lastBar = Robot.MarketSeries.Close.Count - 1;
                 double lastPrice = Robot.MarketSeries.Close.LastValue;
@@ -123,7 +123,7 @@ namespace cAlgo
                 if (position.TakeProfit.HasValue)
                     position.ModifyTakeProfitPrice(null);
 
-                if (position.TradeType == TradeType.Buy)
+                if (position.TradeType == TradeType.Buy && onBar)
                 {
                     EmaLow.Calculate(lastBar);
                     EmaHigh.Calculate(lastBar);
@@ -137,7 +137,7 @@ namespace cAlgo
                     if (trailedPositions.Contains(position))
                         position.ModifyStopLossPrice(emaLow);
                 }
-                if (position.TradeType == TradeType.Sell)
+                if (position.TradeType == TradeType.Sell && onBar)
                 {
                     EmaLow.Calculate(lastBar);
                     EmaHigh.Calculate(lastBar);

@@ -69,16 +69,13 @@ namespace cAlgo
             Robot.Chart.DrawStaticText("calendar", text, VerticalAlignment.Bottom, HorizontalAlignment.Left, Color.Gray);
         }
 
-        public bool IsPaused()
+        public bool IsPaused(DateTime ?optTime)
         {
-            DateTime time = Robot.Server.TimeInUtc;
-
+            DateTime time = optTime.HasValue? optTime.Value : Robot.Server.TimeInUtc;
             if(time.DayOfWeek == DayOfWeek.Friday && (time.Hour > 20 && time.Minute > 0 ) && ( time.Hour < 23 && time.Minute < 59))
-            {
                 return true;
-            }
 
-            DateTime ?pausedUntil = GetEventsInAdvance(Robot.Symbol.Name);
+            DateTime ?pausedUntil = GetEventsInAdvance(Robot.Symbol.Name, time);
             if (pausedUntil != null)
             {
                 PausedUntil = pausedUntil;
@@ -108,7 +105,7 @@ namespace cAlgo
             List<CalendarEntry> events = new List<CalendarEntry>();
             foreach (CalendarEntry entry in Entries)
             {
-                if (symbol.Contains(entry.Country) && time <= entry.EventTime && count < maxEvents)
+                if (symbol.Contains(entry.Country) && time <= entry.EventTimeAfter && count < maxEvents)
                 {
                     events.Add(entry);
                     count++;
@@ -117,15 +114,14 @@ namespace cAlgo
             return events;
         }
 
-        private DateTime? GetEventsInAdvance(string symbol)
+        private DateTime? GetEventsInAdvance(string symbol, DateTime time)
         {
             symbol = MapSymbolToCountry(symbol);
-            DateTime time = Robot.Server.Time;
             CalendarEntry last = null;
             List<CalendarEntry> group = new List<CalendarEntry>();
             foreach (CalendarEntry entry in Entries)
             {
-                if (symbol.Contains(entry.Country) && entry.EventTimeBefore.AddMinutes(-5) <= time && time <= entry.EventTimeBefore.AddMinutes(5))
+                if (symbol.Contains(entry.Country) && DateTime.Compare(entry.EventTimeBefore, time) <= 0 && DateTime.Compare(time, entry.EventTimeAfter) <= 0)
                 {
                     if (last == null || last.EventTime == entry.EventTime)
                         group.Add(entry);
@@ -246,7 +242,7 @@ namespace cAlgo
 
         override public string ToString()
         {
-            return Country + " " + EventImpact + " " + EventTime + " " + Comment;
+            return Country + " " + EventImpact + " " + EventTime + " " + Comment + " <" + EventTimeBefore + " - " +  EventTimeAfter + ">";
         }
     }
 

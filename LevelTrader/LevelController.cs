@@ -21,7 +21,11 @@ namespace cAlgo
 
         private Calendar Calendar { get; set; }
 
-        private List<Level> Levels;
+        private List<Level> Levels = new List<Level>();
+
+        private List<Level> PreviousLevels;
+
+        private bool ShouldDoUpdate = false;
 
         private LevelRenderer Renderer;
 
@@ -42,22 +46,41 @@ namespace cAlgo
             Calculator = new RiskCalculator(Robot);
         }
 
-        public void Init(double dailyAtr, params DateTime[] date)
+        public bool Init(double dailyAtr, params DateTime[] date)
         {
+            if (Params.CalendarPause)
+            {
+                // DateTime dd = new DateTime(2019, 12, 10, 17, 58, 0);
+                Paused = Calendar.IsPaused(null);
+            }
+
             DailyAtr = dailyAtr;
             XDocument xml = LoadXml(date);
-            Levels = new List<Level>();
             if(xml != null)
             {
-                Levels = new LevelParser().Parse(xml, Params, Robot.Server.Time);
-                Initialize(Levels);
-                AnalyzeHistory(Levels);
-                Renderer.Render(Levels);
-                SendEmailNotification(dailyAtr);
+                List<Level> levels = new LevelParser().Parse(xml, Params, Robot.Server.Time);
+                bool success = AreLevelsUpdatedProperly(levels);
+                if (success)
+                {
+                    Levels = levels;
+                    PreviousLevels = Levels;
+                    Initialize(Levels);
+                    AnalyzeHistory(Levels);
+                    Renderer.Render(Levels, Paused);
+                    SendEmailNotification(dailyAtr);
+                }
+                return success;
             }
+            return true;
         }
 
-
+        private bool AreLevelsUpdatedProperly(List<Level> levels)
+        {
+            if (PreviousLevels == null || PreviousLevels.Count == 0 || levels.Count == 0)
+                return true;
+            string label = PreviousLevels[0].Label;
+            return !levels.Exists(l => l.Label == label);
+        }
 
         private XDocument LoadXml(params DateTime[] date)
         {
@@ -90,21 +113,31 @@ namespace cAlgo
         {
             DailyAtr = dailyAtr;
             DateTime time = Robot.Server.TimeInUtc;
-            if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute && (time.DayOfWeek != DayOfWeek.Saturday || time.DayOfWeek != DayOfWeek.Sunday))
+
+            if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute && (time.DayOfWeek != DayOfWeek.Saturday && time.DayOfWeek != DayOfWeek.Sunday))
+                ShouldDoUpdate = true;
+       
+            if(ShouldDoUpdate)
             {
-                Init(dailyAtr);
-                logger.Info(String.Format("Auto-reload on scheduled time {0} UTC executed successfully", time));
-                Robot.Print("Auto-reload on scheduled time {0} UTC executed successfully", time);
-                Robot.Notifications.SendEmail("marecica33@hotmail.com", "marek.balla@gmail.com", "Levels initialized", "test");
+                if(Init(dailyAtr))
+                {
+                    logger.Info(String.Format("Auto-reload on scheduled time {0} UTC executed successfully", time));
+                    Robot.Print("Auto-reload on scheduled time {0} UTC executed successfully", time);
+                    ShouldDoUpdate = false;
+                }
+                else
+                {
+                    logger.Info(String.Format("Auto-reload on scheduled time {0} UTC failed, trying again..", time));
+                }
             }
 
             if (Params.CalendarPause)
             {
-                bool paused = Calendar.IsPaused();
+                bool paused = Calendar.IsPaused(null);
                 if (paused != Paused)
                 {
-                    Renderer.Render(Levels, paused);
                     Paused = paused;
+                    Renderer.Render(Levels, Paused);
                     if (Paused)
                         foreach (Level level in Levels)
                             CancelPendingOrder(level, "Ongoing calendar event with expected impact");
@@ -266,6 +299,9 @@ namespace cAlgo
 
                         logger.Info(String.Format("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error));
                         Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
+
+                        if (result.IsSuccessful)
+                            SendEmailOrderPlaced(level);
                     }
                     else
                     {
@@ -361,7 +397,7 @@ namespace cAlgo
 
         private void SendEmailNotification(double dailyAtr)
         {
-            if (Robot.RunningMode == RunningMode.RealTime && Params.Email != null)
+            if (Robot.RunningMode == RunningMode.RealTime && Params.Email != null && Params.Email.Length > 0)
             {
                 string body = "";
                 body += "Levels initialized for Day " + Robot.Server.TimeInUtc + " UTC \r\n";
@@ -383,6 +419,14 @@ namespace cAlgo
                 body += "Notification sent by LevelTrader on " + Robot.Server.TimeInUtc + " UTC";
                 Robot.Notifications.SendEmail("larecica2@gmail.com", Params.Email,"LevelTrader initialized " + Robot.SymbolName + " " + Params.StrategyType, body);
             }
+        }
+
+        private void SendEmailOrderPlaced(Level level)
+        {
+            string body = "";
+            body += "Order placed for " + Robot.SymbolName + " on " + Robot.Server.TimeInUtc + " UTC \r\n";
+            body += "Level: " + level.ToString();
+            Robot.Notifications.SendEmail("larecica2@gmail.com", Params.Email, "Order placed for " + Robot.SymbolName + " " + Params.StrategyType + " " + level.Label, body);
         }
     }
 }

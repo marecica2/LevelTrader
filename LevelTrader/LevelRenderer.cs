@@ -12,7 +12,7 @@ namespace cAlgo
             this.Robot = robot;
         }
 
-        public void Render(List<Level> Levels, bool paused = false)
+        public void Render(List<Level> Levels, bool paused)
         {
             foreach (Level level in Levels)
             {
