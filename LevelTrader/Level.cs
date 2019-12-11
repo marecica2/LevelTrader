@@ -37,6 +37,8 @@ namespace cAlgo
 
         public LinkedLevel LinkedLevel1 { get; set; }
         public LinkedLevel LinkedLevel2 { get; set; }
+        public bool Disabled { get; set; }
+        public string Uid { get; set; }
 
         override public string ToString()
         {

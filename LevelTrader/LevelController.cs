@@ -37,6 +37,8 @@ namespace cAlgo
 
         private DateTime ?PausedUntil;
 
+        private LevelPanel LevelPanel;
+
         public LevelController(Robot robot, InputParams inputParams, Calendar calendar)
         {
             Robot = robot;
@@ -49,10 +51,7 @@ namespace cAlgo
         public bool Init(double dailyAtr, params DateTime[] date)
         {
             if (Params.CalendarPause)
-            {
-                // DateTime dd = new DateTime(2019, 12, 10, 17, 58, 0);
                 Paused = Calendar.IsPaused(null);
-            }
 
             DailyAtr = dailyAtr;
             XDocument xml = LoadXml(date);
@@ -63,6 +62,8 @@ namespace cAlgo
                 if (success)
                 {
                     Levels = levels;
+                    Levels.Sort(new LevelSort());
+                    InitPanel(Robot, Levels);
                     PreviousLevels = Levels;
                     Initialize(Levels);
                     AnalyzeHistory(Levels);
@@ -76,6 +77,8 @@ namespace cAlgo
 
         private bool AreLevelsUpdatedProperly(List<Level> levels)
         {
+            if (Params.StrategyType != StrategyType.ID)
+                return true;
             if (PreviousLevels == null || PreviousLevels.Count == 0 || levels.Count == 0)
                 return true;
             string label = PreviousLevels[0].Label;
@@ -113,7 +116,6 @@ namespace cAlgo
         {
             DailyAtr = dailyAtr;
             DateTime time = Robot.Server.TimeInUtc;
-
             if (Params.DailyReloadHour == time.Hour && Params.DailyReloadMinute == time.Minute && (time.DayOfWeek != DayOfWeek.Saturday && time.DayOfWeek != DayOfWeek.Sunday))
                 ShouldDoUpdate = true;
        
@@ -139,8 +141,11 @@ namespace cAlgo
                     Paused = paused;
                     Renderer.Render(Levels, Paused);
                     if (Paused)
+                    {
+                        Robot.Print("Ongoing calendar events. Pausing until {0}", Calendar.PausedUntil);
                         foreach (Level level in Levels)
                             CancelPendingOrder(level, "Ongoing calendar event with expected impact");
+                    }
                 }
             }
         }
@@ -148,44 +153,37 @@ namespace cAlgo
         private void Initialize(List<Level> levels)
         {
             int idx = 0;
-            int atrBasedPips = Params.UseAtrBasedStoppLossPips == true ? (int)Math.Round(Math.Max(DailyAtr * SL_DAILY_ATR_PERCENTAGE, Params.DefaultStopLossPips)) : Params.DefaultStopLossPips;
+            int stopLossPips = Params.UseAtrBasedStoppLossPips == true ? (int)Math.Round(Math.Max(DailyAtr * SL_DAILY_ATR_PERCENTAGE, Params.DefaultStopLossPips)) : Params.DefaultStopLossPips;
             if(Params.UseAtrBasedStoppLossPips == true)
             {
-                logger.Info(String.Format("Using ATR based Stop Loss: Avg. Daily Atr (Pips): {0} * {1} percentage = {2} Pips", DailyAtr, SL_DAILY_ATR_PERCENTAGE, atrBasedPips));
-                Robot.Print("Using ATR based Stop Loss: Avg. Daily Atr (Pips): {0} * {1} percentage = {2} Pips", DailyAtr, SL_DAILY_ATR_PERCENTAGE, atrBasedPips);
+                logger.Info(String.Format("Using ATR based Stop Loss: Avg. Daily Atr (Pips): {0} * {1} percentage = {2} Pips", DailyAtr, SL_DAILY_ATR_PERCENTAGE, stopLossPips));
+                Robot.Print("Using ATR based Stop Loss: Avg. Daily Atr (Pips): {0} * {1} percentage = {2} Pips", DailyAtr, SL_DAILY_ATR_PERCENTAGE, stopLossPips);
             }
 
             foreach (Level level in Levels)
             {
                 logger.Info(level.ToString());
                 Robot.Print(level);
-                level.Id = Params.LevelFileName + "_" + idx;
+                level.Id = Params.StrategyType == StrategyType.ID ? Params.LevelFileName + "_" + idx : level.Uid;
                 level.BeginBarIndex = Robot.MarketSeries.OpenTime.GetIndexByTime(level.ValidFrom);
                 GetDirection(level, level.BeginBarIndex);
+                level.Disabled = false;
+
                 level.EntryPrice = level.Direction == Direction.LONG ?
                     level.EntryPrice + Params.LevelOffset * Robot.Symbol.TickSize :
                     level.EntryPrice - Params.LevelOffset * Robot.Symbol.TickSize;
+
                 if (level.StopLossPips == 0)
-                {
-                    level.StopLossPips = atrBasedPips;
-                }
+                    level.StopLossPips = stopLossPips;
+
                 if (level.ProfitTargetPips == 0)
                     level.ProfitTargetPips = (int) (level.StopLossPips * Params.RiskRewardRatio * 100);
 
-                if(level.Direction == Direction.LONG)
-                {
-                    level.StopLossPrice = level.EntryPrice - level.StopLossPips * Robot.Symbol.PipSize;
-                    level.ProfitTargetPrice = level.EntryPrice + level.ProfitTargetPips * Params.RiskRewardRatio * 100 * Robot.Symbol.PipSize;
-                    level.ActivatePrice = level.EntryPrice + level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelActivate;
-                    level.DeactivatePrice = level.EntryPrice + level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
-                }
-                else
-                {
-                    level.StopLossPrice = level.EntryPrice + level.StopLossPips * Robot.Symbol.PipSize;
-                    level.ProfitTargetPrice = level.EntryPrice - level.ProfitTargetPips * Params.RiskRewardRatio * 100 * Robot.Symbol.PipSize;
-                    level.ActivatePrice = level.EntryPrice - level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelActivate;
-                    level.DeactivatePrice = level.EntryPrice - level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
-                }
+                int direction = level.Direction == Direction.LONG ? 1 : -1;
+                level.StopLossPrice = level.EntryPrice + -1 * direction * level.StopLossPips * Robot.Symbol.PipSize;
+                level.ProfitTargetPrice = level.EntryPrice + direction * level.ProfitTargetPips * Robot.Symbol.PipSize;
+                level.ActivatePrice = level.EntryPrice + direction * level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelActivate;
+                level.DeactivatePrice = level.EntryPrice + direction * level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
                 idx++;
             }
             logger.Info(String.Format("Number of levels loaded: {0}", Levels.Count));
@@ -285,13 +283,14 @@ namespace cAlgo
                     level.LevelActivated = true;
                     level.LevelActivatedIndex = idx;
                     level.Traded = true;
+                    bool isSpike = IsSpike(level.Direction == Direction.LONG ? TradeType.Sell : TradeType.Buy);
                     Renderer.RenderLevel(level, Paused);
-                    if (!Paused && !IsSpike(level.Direction == Direction.LONG ? TradeType.Sell : TradeType.Buy))
+                    if (!Paused && !level.Disabled && !isSpike)
                     {
-                        double risk = Calculator.GetRisk(Params.RiskRewardRatio, Params.FixedRiskAmount);
+                        double risk = Calculator.GetRisk(Params.PositionSize, Params.FixedRiskAmount);
                         double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, level.StopLossPips, trade);
                         string label = Utils.PositionLabel(Robot.SymbolName, Params.LevelFileName, Params.StrategyType.ToString());
-                        string comment = "profit=" + risk + "&level=" + level.Label;
+                        string comment = "profit=" + risk + "&level=" + level.Label + "&profitPips="+level.ProfitTargetPips;
                         TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo, comment);
 
                         logger.Info(String.Format("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, level.StopLossPips, trade));
@@ -305,8 +304,8 @@ namespace cAlgo
                     }
                     else
                     {
-                        logger.Info(String.Format("Order skipped because of Calendar Event / Spike against"));
-                        Robot.Print("Order skipped because of Calendar Event / Spike against");
+                        logger.Info(String.Format("Order skipped. State: Disabled {0} Calendar Event {1} Spike {2}", level.Disabled, Paused, isSpike));
+                        Robot.Print("Order skipped. State: Disabled: {0} Calendar Event: {1} Spike: {2}", level.Disabled, Paused, isSpike);
                     }
                 }
 
@@ -423,10 +422,38 @@ namespace cAlgo
 
         private void SendEmailOrderPlaced(Level level)
         {
-            string body = "";
-            body += "Order placed for " + Robot.SymbolName + " on " + Robot.Server.TimeInUtc + " UTC \r\n";
-            body += "Level: " + level.ToString();
-            Robot.Notifications.SendEmail("larecica2@gmail.com", Params.Email, "Order placed for " + Robot.SymbolName + " " + Params.StrategyType + " " + level.Label, body);
+            if (Robot.RunningMode == RunningMode.RealTime && Params.Email != null && Params.Email.Length > 0)
+            {
+                string body = "";
+                body += "Order placed for " + Robot.SymbolName + " on " + Robot.Server.TimeInUtc + " UTC \r\n";
+                body += "Level: " + level.ToString();
+                Robot.Notifications.SendEmail("larecica2@gmail.com", Params.Email, "Order placed for " + Robot.SymbolName + " " + Params.StrategyType + " " + level.Label, body);
+            }
+        }
+
+
+        protected void InitPanel(Robot robot, List<Level> levels)
+        {
+            LevelPanel = new LevelPanel(robot, levels, Renderer);
+            var border = new Border
+            {
+                VerticalAlignment = VerticalAlignment.Top,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Style = Styles.CreatePanelBackgroundStyle(),
+                Margin = "10 10 10 10",
+                Child = LevelPanel
+            };
+            Robot.Chart.AddControl(border);
+        }
+
+        class LevelSort : IComparer<Level>
+        {
+            int IComparer<Level>.Compare(Level x, Level y)
+            {
+                Level l1 = (Level)x;
+                Level l2 = (Level)y;
+                return String.Compare(l1.Label, l2.Label);
+            }
         }
     }
 }

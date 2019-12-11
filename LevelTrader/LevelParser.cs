@@ -23,11 +23,10 @@ namespace cAlgo
                 defaultValidFrom = defaultValidFrom.AddHours(9);
                 defaultValidTo = defaultValidFrom.AddDays(14).AddMinutes(-1);
             }
-
-            string instrument = parameters.LevelId != null ? parameters.LevelId : parameters.Instrument;
+            string instrument = !String.IsNullOrEmpty(parameters.LevelId) ? parameters.LevelId : parameters.Instrument;
             return (
                 from c in xml.Root.Descendants("Level")
-                where (string)c.Attribute("Instrument") == instrument
+                where instrument.Equals((string)c.Attribute("Instrument"))
                 select new Level
                 {
                     Symbol = (string)c.Attribute("Instrument"),
@@ -37,6 +36,7 @@ namespace cAlgo
                     ValidTo = parameters.StrategyType == StrategyType.ID ? ParseDateTime(c.Element("EndTime").Value, parameters) : defaultValidTo,
                     StopLossPips = getStopLoss(parameters.StrategyType, c),
                     ProfitTargetPips = getProfit(parameters.StrategyType, c),
+                    Uid = (string) c.Element("Guid").Value,
                 }).ToList();
         }
 

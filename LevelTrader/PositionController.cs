@@ -16,6 +16,7 @@ namespace cAlgo
 
         private List<Position> negativeBePositions = new List<Position>();
         private List<Position> positiveBePositions = new List<Position>();
+        private List<Position> positivePartialProfitPositions = new List<Position>();
         private List<Position> trailedPositions = new List<Position>();
 
         private ExponentialMovingAverage EmaHigh;
@@ -38,8 +39,14 @@ namespace cAlgo
                 if (position.GrossProfit < 0 && !negativeBePositions.Contains(position))
                 {
                    ApplyNegativeProfitStrategy(position, Params.LossStrategy);
-                }             
-                if (position.GrossProfit >= getProfitAmount(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0)
+                }
+                if (position.GrossProfit > 0 && position.Pips > getProfitPips(attributes) * Params.ProfitBreakEvenThreshold && !positiveBePositions.Contains(position))
+                {
+                    SetBreakEven(position);
+                    positiveBePositions.Add(position);
+                }
+
+                if (position.GrossProfit > 0 && position.Pips > getProfitPips(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0)
                 {
                     ApplyProfitStrategy(position, false);
                 }
@@ -51,7 +58,7 @@ namespace cAlgo
             foreach (Position position in getPositions())
             {
                 Dictionary<String, String> attributes = Utils.ParseComment(position.Comment);
-                if (position.GrossProfit >= getProfitAmount(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0)
+                if (position.GrossProfit > 0 && position.Pips > getProfitPips(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0)
                 {
                     ApplyProfitStrategy(position, true);
                 }
@@ -104,21 +111,10 @@ namespace cAlgo
 
         private void ApplyProfitStrategy(Position position, bool onBar)
         {
-            if(Params.ProfitStrategy == ProfitStrategy.SIMPLE && !onBar)
-            {
-                if (!positiveBePositions.Contains(position))
-                    SetBreakEven(position);
-                positiveBePositions.Add(position);
-            }
-
             if (Params.ProfitStrategy == ProfitStrategy.TRAILING_ENVELOPE_50)
             {
                 int lastBar = Robot.MarketSeries.Close.Count - 1;
                 double lastPrice = Robot.MarketSeries.Close.LastValue;
-
-                if (!positiveBePositions.Contains(position))
-                    SetBreakEven(position);
-                positiveBePositions.Add(position);
 
                 if (position.TakeProfit.HasValue)
                     position.ModifyTakeProfitPrice(null);
@@ -188,9 +184,9 @@ namespace cAlgo
             return false;
         }
 
-        private double getProfitAmount(Dictionary<String, String> attributes)
+        private double getProfitPips(Dictionary<String, String> attributes)
         {
-            return Double.Parse(attributes["profit"]);
+            return Double.Parse(attributes["profitPips"]);
         }
 
         private double LastPrice(TradeType tradeType)

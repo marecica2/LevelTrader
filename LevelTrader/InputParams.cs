@@ -39,6 +39,8 @@
         public double PositionSize { get; set; }
         public int DefaultStopLossPips { get; set; }
         public double RiskRewardRatio { get; set; }
+        public double FixedRiskAmount { get; internal set; }
+        public bool UseAtrBasedStoppLossPips { get; set; }
 
         // Level params
         public double LevelActivate { get; set; }
@@ -50,20 +52,18 @@
         public int CandlesInNegativeArea { get; set; }
 
         // Profit params
-
-
-        // Backtest
-        public string BackTestPath { get; set; }
+        public ProfitStrategy ProfitStrategy { get; set; }
         public double NegativeBreakEvenOffset { get; set; }
         public double ProfitThreshold { get; set; }
         public double ProfitVolume { get; set; }
+        public double ProfitBreakEvenThreshold { get; set; }
+
         public bool CalendarPause { get; set; }
         public int CalendarEventDuration { get; set; }
-        public double FixedRiskAmount { get; internal set; }
-        public bool UseAtrBasedStoppLossPips { get; set; }
         public bool PreventSpikes { get; set; }
-        public ProfitStrategy ProfitStrategy { get; set; }
         public string Email { get; set; }
-        
+
+        // Backtest
+        public string BackTestPath { get; set; }
     }
 }

@@ -18,7 +18,7 @@ namespace cAlgo
         private Robot Robot { get; set; }
         private InputParams Params { get; set; }
         private List<CalendarEntry> Entries = new List<CalendarEntry>();
-        private DateTime? PausedUntil;
+        public DateTime? PausedUntil { get; private set; }
         private bool Paused = false;
 
         public Calendar(Robot robot, InputParams inputParams)

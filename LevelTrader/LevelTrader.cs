@@ -76,10 +76,13 @@ namespace cAlgo.Robots
         [Parameter("Risk Reward Ratio [%]", DefaultValue = 1, MinValue = 0.5, Group = "Profit Control", Step = 0.1)]
         public double RiskRewardRatio { get; set; }
 
-        [Parameter("Profit Autoclose threshold [% of PT]", DefaultValue = 60, MinValue = 0, MaxValue = 95, Group = "Profit Control", Step = 5.0)]
+        [Parameter("Positive Break Even Level[% of PT]", DefaultValue = 50, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 5.0)]
+        public double ProfitBreakEvenThreshold { get; set; }
+
+        [Parameter("Partial Profit Level[% of PT]", DefaultValue = 60, MinValue = 0, MaxValue = 95, Group = "Profit Control", Step = 5.0)]
         public double ProfitThreshold { get; set; }
 
-        [Parameter("Profit Volume [% of PT]", DefaultValue = 50, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 5.0)]
+        [Parameter("Partial Profit Volume[% of PT]", DefaultValue = 50, MinValue = 0, MaxValue = 100, Group = "Profit Control", Step = 5.0)]
         public double ProfitVolume { get; set; }
 
         [Parameter("Profit Strategy", DefaultValue = 0, Group = "Profit Control")]
@@ -152,6 +155,7 @@ namespace cAlgo.Robots
                 CandlesInNegativeArea = CandlesInNegativeArea,
                 NegativeBreakEvenOffset = NegativeBreakEvenOffset * 0.01,
 
+                ProfitBreakEvenThreshold = ProfitBreakEvenThreshold * 0.01,
                 RiskRewardRatio = RiskRewardRatio * 0.01,
                 ProfitThreshold = ProfitThreshold * 0.01,
                 ProfitVolume = ProfitVolume * 0.01,
@@ -180,7 +184,7 @@ namespace cAlgo.Robots
             
             
             PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow);
-            Print("LevelTrader version 1.0 started");
+            Print("LevelTrader version 1.1 started");
         }
 
         protected override void OnTick()
@@ -213,7 +217,7 @@ namespace cAlgo.Robots
             {
                 ArchiveNumbering = ArchiveNumberingMode.DateAndSequence,
                 ArchiveAboveSize = 10485760,
-                FileName = BackTestPath + "/logs/" + this.SymbolName + "_" + this.FileName + (this.RunningMode == RunningMode.RealTime? "" : "_backtest") + ".txt",
+                FileName = BackTestPath + "/logs/" + this.SymbolName + "_" + this.FileName + (this.RunningMode == RunningMode.RealTime ? "" : "_backtest") + ".txt",
                 Layout = "${longdate} ${callsite:className=True:fileName=False:includeSourcePath=False:methodName=False} ${level} ${message} ${exception:format=ToString,StackTrace} ${stacktrace:format=DetailedFlat:topFrames=5:skipFrames=5:separator=&#13;&#10;}"
             };
             config.AddTarget(fileTarget);
@@ -223,6 +227,5 @@ namespace cAlgo.Robots
             config.AddRuleForOneLevel(LogLevel.Error, fileTarget);
             LogManager.Configuration = config;
         }
-
     }
 }

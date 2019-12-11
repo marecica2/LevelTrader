@@ -23,10 +23,10 @@ namespace cAlgo
         public void RenderLevel(Level level, bool paused = false)
         {
             // Robot.Print(level);
-            bool inactive = level.Traded || paused;
-            string status = level.Traded ? "traded" : paused ? "paused" : "";
+            bool inactive = level.Traded || level.Disabled || paused;
+            string status = level.Traded ? "traded" : paused ? "paused" : level.Disabled ? "disabled" : "";
             string description = level.Label + " " + level.Direction + " " + status;
-            string levelPrefix = level.Label;
+            string levelPrefix = level.Label + level.Uid;
 
             Color levelColor = inactive ? Color.Gray : Color.DarkBlue;
             Color zoneColor = inactive ? Color.LightGray : Color.LightBlue;

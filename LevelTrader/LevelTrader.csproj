@@ -59,6 +59,7 @@
     <Compile Include="Calendar.cs" />
     <Compile Include="LevelController.cs" />
     <Compile Include="Level.cs" />
+    <Compile Include="LevelPanel.cs" />
     <Compile Include="LevelRenderer.cs" />
     <Compile Include="LevelTrader.cs" />
     <Compile Include="InputParams.cs" />
