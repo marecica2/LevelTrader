@@ -192,7 +192,7 @@ namespace cAlgo.Robots
             
             
             PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow, Calendar);
-            Print("LevelTrader version 2.0 started");
+            Print("LevelTrader version 2.1 started");
         }
 
         protected override void OnTick()
