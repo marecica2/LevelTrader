@@ -25,10 +25,10 @@ namespace cAlgo
             double riskAmount = GetRisk(risk, fixedRisk);
             double volume = riskAmount / (pipValue * stopLossPips);
 
-            double lots = volume / 100000;
-            double fee = lots * 3.5 * 2;
+            // double lots = volume / 100000;
+            // double fee = lots * 3.5 * 2;
 
-            riskAmount += fee;
+            // riskAmount += fee;
             volume = riskAmount / (pipValue * stopLossPips);
 
             // Robot.Print("Volume for {0} with Risk: {1} SL Pips: {2}  is {3}", symbol, risk, stopLossPips, volume);

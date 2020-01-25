@@ -77,6 +77,8 @@ namespace cAlgo
 
         private bool AreLevelsUpdatedProperly(List<Level> levels)
         {
+            if (Robot.RunningMode != RunningMode.RealTime)
+                return true;
             if (Params.StrategyType != StrategyType.ID)
                 return true;
             if (PreviousLevels == null || PreviousLevels.Count == 0 || levels.Count == 0)
@@ -179,11 +181,13 @@ namespace cAlgo
                 if (level.ProfitTargetPips == 0)
                     level.ProfitTargetPips = (int) (level.StopLossPips * Params.RiskRewardRatio * 100);
 
+                double riskPips = (int)(level.StopLossPips);
+
                 int direction = level.Direction == Direction.LONG ? 1 : -1;
                 level.StopLossPrice = level.EntryPrice + -1 * direction * level.StopLossPips * Robot.Symbol.PipSize;
                 level.ProfitTargetPrice = level.EntryPrice + direction * level.ProfitTargetPips * Robot.Symbol.PipSize;
-                level.ActivatePrice = level.EntryPrice + direction * level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelActivate;
-                level.DeactivatePrice = level.EntryPrice + direction * level.ProfitTargetPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
+                level.ActivatePrice = level.EntryPrice + direction * riskPips * Robot.Symbol.PipSize * Params.LevelActivate;
+                level.DeactivatePrice = level.EntryPrice + direction * riskPips * Robot.Symbol.PipSize * Params.LevelDeactivate;
                 idx++;
             }
             logger.Info(String.Format("Number of levels loaded: {0}", Levels.Count));
@@ -285,27 +289,41 @@ namespace cAlgo
                     level.Traded = true;
                     bool isSpike = IsSpike(level.Direction == Direction.LONG ? TradeType.Sell : TradeType.Buy);
                     Renderer.RenderLevel(level, Paused);
-                    if (!Paused && !level.Disabled && !isSpike)
+
+                    double spread = Math.Round(Robot.Symbol.Spread / Robot.Symbol.PipSize, 3);
+                    if (spread > Params.MaxSpread)
+                        Robot.Print("Spread is over treshold {0} > {1}", spread, Params.MaxSpread);
+
+                    if (!Paused && !level.Disabled && !isSpike && spread <= Params.MaxSpread)
                     {
                         double risk = Calculator.GetRisk(Params.PositionSize, Params.FixedRiskAmount);
                         double volume = Calculator.GetVolume(Robot.Symbol.Name, Params.PositionSize, Params.FixedRiskAmount, level.StopLossPips, trade);
                         string label = Utils.PositionLabel(Robot.SymbolName, Params.LevelFileName, Params.StrategyType.ToString());
                         string comment = "profit=" + risk + "&level=" + level.Label + "&profitPips="+level.ProfitTargetPips;
-                        TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo, comment);
 
-                        logger.Info(String.Format("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, level.StopLossPips, trade));
-                        Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}", level.EntryPrice, level.StopLossPips, trade);
+                        double maxVolume = Robot.Symbol.NormalizeVolumeInUnits(Robot.Account.FreeMargin * Params.MarginTreshold * Robot.Account.PreciseLeverage, RoundingMode.Down);
+                        if(volume < maxVolume)
+                        {
+                            TradeResult result = Robot.PlaceLimitOrder(trade, Robot.Symbol.Name, volume, level.EntryPrice, label, level.StopLossPips, level.ProfitTargetPips, level.ValidTo, comment);
+                            logger.Info(String.Format("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2}  Spread: {3}", level.EntryPrice, level.StopLossPips, trade, spread));
+                            Robot.Print("Placing Limit Order Entry:{0} SL Pips:{1} Type: {2} Spread: {3}", level.EntryPrice, level.StopLossPips, trade, spread);
 
-                        logger.Info(String.Format("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error));
-                        Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
+                            logger.Info(String.Format("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error));
+                            Robot.Print("Order placed for Level {0} Success: {1}  Error: {2}", result.PendingOrder.Label, result.IsSuccessful, result.Error);
 
-                        if (result.IsSuccessful)
-                            SendEmailOrderPlaced(level);
+                            if (result.IsSuccessful)
+                                SendEmailOrderPlaced(level);
+                        }
+                        else
+                        {
+                            logger.Info(String.Format("Order skipped. Insufficient free margin to open position with {0} units. Max units: {1}", volume, maxVolume));
+                            Robot.Print(String.Format("Order skipped. Insufficient free margin to open position with {0} units. Max units: {1}", volume, maxVolume));
+                        }
                     }
                     else
                     {
-                        logger.Info(String.Format("Order skipped. State: Disabled {0} Calendar Event {1} Spike {2}", level.Disabled, Paused, isSpike));
-                        Robot.Print("Order skipped. State: Disabled: {0} Calendar Event: {1} Spike: {2}", level.Disabled, Paused, isSpike);
+                        logger.Info(String.Format("Order skipped. State: Disabled {0} Calendar Event: {1}, Spike: {2}, Spread {3} pips, Free margin: {4}", level.Disabled, Paused, isSpike, spread, Robot.Account.FreeMargin));
+                        Robot.Print("Order skipped. State: Disabled: {0} Calendar Event: {1}, Spike: {2}, Spread: {3} pips, Free margin: {4}", level.Disabled, Paused, isSpike, spread, Robot.Account.FreeMargin);
                     }
                 }
 

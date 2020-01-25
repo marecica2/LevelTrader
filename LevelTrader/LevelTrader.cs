@@ -40,6 +40,12 @@ namespace cAlgo.Robots
         [Parameter("Fixed Risk [Currency]", DefaultValue = 0, MinValue = 0, Group = "Risk Management", Step = 50.0)]
         public double FixedRisk { get; set; }
 
+        [Parameter("Max Spread [Pips]", DefaultValue = 1, MinValue = 0, Group = "Risk Management", Step = 0.1)]
+        public double MaxSpread { get; set; }
+
+        [Parameter("Free Margin Minimum [%]", DefaultValue = 1, MinValue = 0, MaxValue = 1, Group = "Risk Management", Step = 0.1)]
+        public double MarginThreshold { get; set; }
+
 
 
         [Parameter("Activate Level Distance [%]", DefaultValue = 30, MinValue = 0, MaxValue = 100, Group = "Level Control")]
@@ -143,6 +149,8 @@ namespace cAlgo.Robots
 
                 PositionSize = PositionSizePercents * 0.01,
                 FixedRiskAmount = FixedRisk,
+                MaxSpread = MaxSpread,
+                MarginTreshold = MarginThreshold,
 
                 LevelActivate = ActivateLevelPercents * 0.01,
                 LevelDeactivate = DeactivateLevelPercents * 0.01,
@@ -183,8 +191,8 @@ namespace cAlgo.Robots
                 LevelController.Init(atrPips);
             
             
-            PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow);
-            Print("LevelTrader version 1.1 started");
+            PositionController = new PositionController(this, InputParams, EmaHigh, EmaLow, Calendar);
+            Print("LevelTrader version 2.0 started");
         }
 
         protected override void OnTick()

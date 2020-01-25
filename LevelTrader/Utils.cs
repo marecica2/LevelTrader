@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using cAlgo.API;
 
 namespace cAlgo
 {
@@ -60,6 +61,69 @@ namespace cAlgo
                 map.Add(kv[0], kv[1]);
             }
             return map;
+        }
+
+
+        public static double CalculateMargin(string symbolCode, double volume, string currency, double leverage, Robot robot)
+        {
+            double margin = 0.0;
+            if (!_symbolExist(symbolCode, robot) || symbolCode.Length != 6) return margin;
+
+            currency = currency.ToUpper();
+            double symbolRate = _symbolRate(symbolCode, robot);
+            if (symbolRate == 0) return margin;
+
+
+            string baseCurrency = symbolCode.Substring(0, 3).ToUpper();
+            string subaCurrency = symbolCode.Substring(3, 3).ToUpper();
+
+            if (currency.Equals(baseCurrency))
+            {
+                margin = volume / leverage;
+            }
+            else if (currency.Equals(subaCurrency))
+            {
+                margin = volume / leverage * symbolRate;
+            }
+            else
+            {
+                symbolRate = _symbolRate(baseCurrency + currency, robot);
+                if (symbolRate == 0)
+                {
+                    symbolRate = _symbolRate(currency + baseCurrency, robot);
+                    if (symbolRate == 0) return margin;
+                    symbolRate = 1 / symbolRate;
+                }
+                margin = volume / leverage * symbolRate;
+            }
+            return (margin > 0) ? Math.Round(margin, 2) : 0;
+        }
+
+        private static bool _symbolExist(string symbolCode, Robot robot)
+        {
+            try
+            {
+                bool exist = robot.MarketData.GetSymbol(symbolCode) != null;
+                return exist;
+            } catch
+            {
+                return false;
+            }
+        }
+
+        private static double _symbolRate(string symbolCode, Robot robot)
+        {
+            try
+            {
+            robot.Print("X", robot.Symbols.GetSymbol(symbolCode));
+                double rate = robot.Symbols.GetSymbol(symbolCode).Bid;
+                robot.Print("Symbol rate for {0} :  {1}", symbolCode, rate);
+                return rate;
+            }
+            catch
+            {
+                return 0;
+            }
         }
     }
 }

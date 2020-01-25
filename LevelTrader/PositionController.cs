@@ -14,6 +14,8 @@ namespace cAlgo
 
         public InputParams Params { get; set; }
 
+        private Calendar Calendar { get; set; }
+
         private List<Position> negativeBePositions = new List<Position>();
         private List<Position> positiveBePositions = new List<Position>();
         private List<Position> positivePartialProfitPositions = new List<Position>();
@@ -23,12 +25,13 @@ namespace cAlgo
 
         private ExponentialMovingAverage EmaLow;
 
-        public PositionController(Robot robot, InputParams inputParams, ExponentialMovingAverage emaHigh, ExponentialMovingAverage emaLow)
+        public PositionController(Robot robot, InputParams inputParams, ExponentialMovingAverage emaHigh, ExponentialMovingAverage emaLow, Calendar calendar)
         {
             Robot = robot;
             Params = inputParams;
             EmaHigh = emaHigh;
             EmaLow = emaLow;
+            Calendar = calendar;
         }
 
         public void OnTick()
@@ -40,16 +43,26 @@ namespace cAlgo
                 {
                    ApplyNegativeProfitStrategy(position, Params.LossStrategy);
                 }
+
                 if (position.GrossProfit > 0 && position.Pips > getProfitPips(attributes) * Params.ProfitBreakEvenThreshold && !positiveBePositions.Contains(position))
                 {
                     SetBreakEven(position);
                     positiveBePositions.Add(position);
                 }
 
-                if (position.GrossProfit > 0 && position.Pips > getProfitPips(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0)
+                if (position.GrossProfit > 0 && position.Pips > getProfitPips(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0 && !positivePartialProfitPositions.Contains(position))
                 {
                     ApplyProfitStrategy(position, false);
+                    positivePartialProfitPositions.Add(position);
                 }
+
+                if (Params.CalendarPause && Calendar.IsPaused(null))
+                {
+                    position.Close();
+                    logger.Info(String.Format("Position closed due to calendar event"));
+                    Robot.Print(String.Format("Position closed due to calendar event"));
+                }
+
             }
         }
 
@@ -58,9 +71,10 @@ namespace cAlgo
             foreach (Position position in getPositions())
             {
                 Dictionary<String, String> attributes = Utils.ParseComment(position.Comment);
-                if (position.GrossProfit > 0 && position.Pips > getProfitPips(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0)
+                if (position.GrossProfit > 0 && position.Pips > getProfitPips(attributes) * Params.ProfitThreshold && Params.ProfitThreshold > 0 && !positivePartialProfitPositions.Contains(position))
                 {
                     ApplyProfitStrategy(position, true);
+                    positivePartialProfitPositions.Add(position);
                 }
             }
         }
@@ -148,20 +162,23 @@ namespace cAlgo
                         position.ModifyStopLossPrice(emaHigh);
                 }
             }
+            if (Params.ProfitStrategy == ProfitStrategy.SIMPLE)
+            {
+                if (Params.ProfitVolume > 0)
+                {
+                    logger.Info(String.Format("Partial profit taken for {0}% of original volume of {1} units", Params.ProfitVolume, position.VolumeInUnits));
+                    Robot.Print("Partial profit taken for {0}% of original volume of {1} units", Params.ProfitVolume, position.VolumeInUnits);
+                    Robot.ModifyPosition(position, Robot.Symbol.NormalizeVolumeInUnits(position.VolumeInUnits * Params.ProfitVolume));
+                }
+            }
         }
 
         private void SetBreakEven(Position position)
         {
-            logger.Info(String.Format("Moving Stoploss to Positive Break even. Reason: Profit is now over {0}% threshold", Params.ProfitThreshold * 100));
-            Robot.Print("Moving Stoploss to Positive Break even. Reason: Profit is now over {0}% threshold", Params.ProfitThreshold * 100);
+            logger.Info(String.Format("Moving Stoploss to Positive Break even. Reason: Profit is now over {0}% threshold", Params.ProfitBreakEvenThreshold * 100));
+            Robot.Print("Moving Stoploss to Positive Break even. Reason: Profit is now over {0}% threshold", Params.ProfitBreakEvenThreshold * 100);
             double breakEvenPrice = position.EntryPrice + 1 * Robot.Symbol.PipSize * (position.TradeType == TradeType.Buy ? 1 : -1);
             Robot.ModifyPosition(position, breakEvenPrice, position.TakeProfit);
-            if (Params.ProfitVolume > 0)
-            {
-                logger.Info(String.Format("Partial profit taken for {0}% of original volume of {1} units", Params.ProfitVolume, position.VolumeInUnits));
-                Robot.Print("Partial profit taken for {0}% of original volume of {1} units", Params.ProfitVolume, position.VolumeInUnits);
-                Robot.ModifyPosition(position, Robot.Symbol.NormalizeVolumeInUnits(position.VolumeInUnits * Params.ProfitVolume));
-            }
         }
 
         private bool IsInNegativeArea(int index, Position position, LossStrategy strategy)

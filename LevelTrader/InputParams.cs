@@ -36,6 +36,7 @@
         public string LevelId { get; set; }
 
         // Risk Management
+        public double MaxSpread { get; set; }
         public double PositionSize { get; set; }
         public int DefaultStopLossPips { get; set; }
         public double RiskRewardRatio { get; set; }
@@ -65,5 +66,6 @@
 
         // Backtest
         public string BackTestPath { get; set; }
+        public double MarginTreshold { get; set; }
     }
 }
